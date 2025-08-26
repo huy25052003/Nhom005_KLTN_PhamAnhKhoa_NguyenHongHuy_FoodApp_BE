@@ -1,10 +1,30 @@
 services:
   mariadb:
-    image: 'mariadb:latest'
+    image: mariadb:12.0
     environment:
-      - 'MARIADB_DATABASE=mydatabase'
-      - 'MARIADB_PASSWORD=secret'
-      - 'MARIADB_ROOT_PASSWORD=verysecret'
-      - 'MARIADB_USER=myuser'
+      - MARIADB_ROOT_PASSWORD=verysecret
+      - MARIADB_DATABASE=mydatabase
+      - MARIADB_USER=myuser
+      - MARIADB_PASSWORD=secret
+      - MARIADB_AUTO_UPGRADE=1
+      - TZ=Asia/Ho_Chi_Minh
     ports:
-      - '3306'
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p$${MARIADB_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+volumes:
+  dbdata:
