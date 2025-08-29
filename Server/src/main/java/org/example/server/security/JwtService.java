@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class JwtService {
@@ -23,14 +24,14 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generate(String username, String[] roles) {
+    public String generate(String username, Set<String> roles) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
-                .subject(username)
-                .claims(Map.of("roles", roles))
-                .issuedAt(now)
-                .expiration(exp)
+                .setSubject(username)
+                .addClaims(Map.of("roles", roles))
+                .setIssuedAt(now)
+                .setExpiration(exp)
                 .signWith(key())
                 .compact();
     }
