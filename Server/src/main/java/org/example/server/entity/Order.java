@@ -17,7 +17,7 @@ public class Order {
 
     private BigDecimal total;
 
-    private String status; // PENDING, CONFIRMED, COMPLETED, CANCELED
+    private String status;
 
     private LocalDateTime createdAt;
 

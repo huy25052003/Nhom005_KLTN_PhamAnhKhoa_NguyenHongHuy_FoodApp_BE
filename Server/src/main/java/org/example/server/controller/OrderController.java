@@ -3,6 +3,7 @@ package org.example.server.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.*;
 import org.example.server.service.OrderService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -17,8 +18,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<Order> placeOrder(Authentication auth, @RequestBody List<OrderItem> items) {
-        String username = auth.getName();
-        return ResponseEntity.ok(orderService.placeOrder(username, items));
+        return ResponseEntity.ok(orderService.placeOrder(auth.getName(), items));
     }
 
     @GetMapping("/my")
@@ -26,13 +26,26 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getUserOrders(auth.getName()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Order> getOne(Authentication auth, @PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getOne(auth, id));
+    }
+
     @GetMapping
-    public ResponseEntity<List<Order>> getAllOrders() {
-        return ResponseEntity.ok(orderService.getAllOrders());
+    public ResponseEntity<Page<Order>> getAllOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(orderService.getAllOrders(page, size));
     }
 
     @PutMapping("/{id}/status")
     public ResponseEntity<Order> updateStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
+    }
+
+    // NEW: user huỷ đơn khi còn PENDING
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<Order> cancel(Authentication auth, @PathVariable Long id) {
+        return ResponseEntity.ok(orderService.cancel(auth.getName(), id));
     }
 }
