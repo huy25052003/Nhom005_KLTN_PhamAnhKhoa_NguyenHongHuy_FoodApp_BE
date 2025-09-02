@@ -3,6 +3,9 @@ package org.example.server.service;
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.Product;
 import org.example.server.repository.ProductRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -36,5 +39,10 @@ public class ProductService {
 
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
+    }
+
+    public Page<Product> search(Long categoryId, String q, int page, int limit) {
+        var pageable = PageRequest.of(Math.max(page-1,0), limit, Sort.by(Sort.Direction.DESC, "id"));
+        return productRepository.search(categoryId, q, pageable);
     }
 }

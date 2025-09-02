@@ -3,11 +3,13 @@ package org.example.server.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.Product;
 import org.example.server.service.ProductService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -39,5 +41,19 @@ public class ProductController {
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Map<String, Object>> searchProducts(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        Page<Product> pg = productService.search(categoryId, q, page, limit);
+        return ResponseEntity.ok(Map.of(
+                "items", pg.getContent(),
+                "total", pg.getTotalElements()
+        ));
     }
 }
