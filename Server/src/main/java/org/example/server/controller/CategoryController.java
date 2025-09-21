@@ -4,9 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.server.entity.Category;
 import org.example.server.service.CategoryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -14,10 +12,25 @@ import java.util.List;
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
 public class CategoryController {
-    private final CategoryService categoryService;
+    private final CategoryService service;
 
     @GetMapping
-    public ResponseEntity<List<Category>> list() {
-        return ResponseEntity.ok(categoryService.list());
+    public ResponseEntity<List<Category>> getAll() { return ResponseEntity.ok(service.getAll()); }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Category> getOne(@PathVariable Long id) { return ResponseEntity.ok(service.getOne(id)); }
+
+    @PostMapping
+    public ResponseEntity<Category> create(@RequestBody Category c) { return ResponseEntity.ok(service.create(c)); }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Category> update(@PathVariable Long id, @RequestBody Category c) {
+        return ResponseEntity.ok(service.update(id, c));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Service
 public class PaymentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
+ /*   private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     private final PayOS payOS;
     private final PaymentRepository paymentRepository;
@@ -68,14 +68,6 @@ public class PaymentService {
                         .build())
                 .collect(Collectors.toList());
 
-        PaymentData paymentData = PaymentData.builder()
-                .orderCode(String.valueOf(order.getId()))
-                .amount(order.getTotal().longValue())
-                .description("Thanh toán đơn hàng #" + order.getId())
-                .returnUrl(returnUrl) // Sử dụng giá trị từ application.properties
-                .cancelUrl(cancelUrl) // Sử dụng giá trị từ application.properties
-                .items(itemDataList)
-                .build();
 
         CheckoutResponseData response;
         try {
@@ -147,5 +139,5 @@ public class PaymentService {
         } catch (Exception e) {
             logger.error("Lỗi xử lý webhook: {}", e.getMessage());
         }
-    }
+    }*/
 }
