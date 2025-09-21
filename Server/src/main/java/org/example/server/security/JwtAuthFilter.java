@@ -18,36 +18,38 @@ import java.util.stream.Collectors;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthFilter.class);
     private final JwtService jwtService;
 
-    public JwtAuthFilter(JwtService jwtService) {
-        this.jwtService = jwtService;
-    }
+    public JwtAuthFilter(JwtService jwtService) { this.jwtService = jwtService; }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7).trim();
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7).trim();
             try {
                 String username = jwtService.extractUsername(token);
                 if (username != null && jwtService.isValid(token, username)) {
-                    String[] roles = jwtService.extractRoles(token);
-                    Collection<SimpleGrantedAuthority> authorities = Arrays.stream(roles)
-                            .map(r -> {
-                                if (r.startsWith("ROLE_")) return new SimpleGrantedAuthority(r);
-                                return new SimpleGrantedAuthority("ROLE_" + r);
-                            })
-                            .collect(Collectors.toList());
+                    String[] roles = jwtService.extractRoles(token); // có thể null/empty
+                    Collection<SimpleGrantedAuthority> authorities =
+                            (roles == null ? java.util.List.<SimpleGrantedAuthority>of()
+                                    : Arrays.stream(roles)
+                                    .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
+                                    .map(SimpleGrantedAuthority::new)
+                                    .collect(Collectors.toList()));
 
                     var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(auth);
+                    log.debug("JWT OK -> user={}, roles={}", username, authorities);
+                } else {
+                    log.debug("JWT invalid or no username");
                 }
-            } catch (Exception ignored) {
+            } catch (Exception ex) {
+                log.warn("JWT parse error: {}", ex.getMessage());
             }
         }
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
     }
 }
