@@ -1,7 +1,11 @@
 package org.example.server.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -19,6 +23,10 @@ public class Category {
 
     @Column(length=500)
     private String description;
+
+    @OneToMany(mappedBy = "category")
+    @JsonIgnore
+    private List<Product> products = new ArrayList<>();
 
 
 }

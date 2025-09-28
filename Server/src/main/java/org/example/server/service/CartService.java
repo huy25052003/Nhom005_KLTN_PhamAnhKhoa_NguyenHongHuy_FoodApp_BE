@@ -33,8 +33,16 @@ public class CartService {
         return c;
     }
 
+    @Transactional(readOnly = true)
     public Cart getCart(Authentication auth) {
-        return init(getOrCreate(resolveUser(auth)));
+        String username = auth.getName();
+        return cartRepo.findByUsernameWithItemsAndProduct(username)
+                .orElseGet(() -> {
+                    User u = userRepo.findByUsername(username).orElseThrow();
+                    Cart c = new Cart();
+                    c.setUser(u);
+                    return cartRepo.save(c);
+                });
     }
 
     @Transactional
