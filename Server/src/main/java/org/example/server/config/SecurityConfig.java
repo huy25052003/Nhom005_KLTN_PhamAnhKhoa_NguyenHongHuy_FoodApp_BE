@@ -47,6 +47,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
 
+                        .requestMatchers("/api/users/me/**").authenticated()
+
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/orders/*").authenticated()

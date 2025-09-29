@@ -39,5 +39,9 @@ public class User {
     @JsonIgnore
     private List<Cart> carts = new ArrayList<>();
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
+    private UserProfile profile;
+
+
 
 }
