@@ -19,6 +19,7 @@ import vn.payos.type.ItemData;
 import vn.payos.type.PaymentData;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.Webhook;
+import vn.payos.type.WebhookData;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 @Service
 public class PaymentService {
 
- /*   private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     private final PayOS payOS;
     private final PaymentRepository paymentRepository;
@@ -68,6 +69,15 @@ public class PaymentService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Sửa orderCode thành orderId (số) thay vì chuỗi "ORDER_" + orderId
+        PaymentData paymentData = PaymentData.builder()
+                .orderCode(orderId) // Sử dụng orderId trực tiếp
+                .amount(order.getTotal().intValue())
+                .description("Thanh toán đơn hàng #" + orderId)
+                .returnUrl(returnUrl)
+                .cancelUrl(cancelUrl)
+                .items(itemDataList)
+                .build();
 
         CheckoutResponseData response;
         try {
@@ -80,9 +90,10 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .order(order)
                 .amount(order.getTotal())
-                .payosOrderId(String.valueOf(response.getOrderCode()))
+                .payosOrderId(String.valueOf(orderId)) // Lưu orderId dưới dạng chuỗi
                 .payosPaymentLinkId(response.getPaymentLinkId())
                 .status("PENDING")
+                .paymentMethod("PAYOS")
                 .build();
 
         paymentRepository.save(payment);
@@ -93,7 +104,11 @@ public class PaymentService {
     public void handleWebhook(String webhookBody) {
         try {
             Webhook webhook = objectMapper.readValue(webhookBody, Webhook.class);
-            if (payOS.verifyPaymentWebhookData(webhook)) {
+            WebhookData webhookData = payOS.verifyPaymentWebhookData(webhook);
+            if (webhookData != null) {
+                logger.info("WebhookData received: {}", objectMapper.writeValueAsString(webhookData));
+
+                // Lấy dữ liệu từ webhookBody để xử lý linh hoạt
                 JsonNode jsonNode = objectMapper.readTree(webhookBody);
                 JsonNode dataNode = jsonNode.get("data");
                 if (dataNode == null) {
@@ -101,13 +116,23 @@ public class PaymentService {
                     return;
                 }
 
-                String orderCode = dataNode.get("orderCode").asText();
-                String status = dataNode.get("status").asText();
+                // Lấy orderCode dưới dạng chuỗi và chuyển sang Long nếu cần
+                String orderCodeStr = dataNode.get("orderCode").asText();
+                Long orderCode = null;
+                try {
+                    orderCode = Long.parseLong(orderCodeStr.replaceAll("[^0-9]", "")); // Lọc số từ chuỗi
+                } catch (NumberFormatException e) {
+                    logger.warn("orderCode không hợp lệ: {}, bỏ qua", orderCodeStr);
+                    return;
+                }
 
-                Payment payment = paymentRepository.findByPayosOrderId(orderCode);
+                String status = dataNode.get("status").asText();
+                String signature = jsonNode.get("signature") != null ? jsonNode.get("signature").asText() : null;
+
+                Payment payment = paymentRepository.findByPayosOrderId(orderCodeStr); // Tìm theo chuỗi gốc
                 if (payment != null) {
                     payment.setStatus(status);
-                    payment.setPayosSignature(jsonNode.get("signature").asText());
+                    payment.setPayosSignature(signature);
                     paymentRepository.save(payment);
 
                     Order order = payment.getOrder();
@@ -132,6 +157,8 @@ public class PaymentService {
                             productRepository.save(product);
                         }
                     }
+                } else {
+                    logger.warn("Webhook không hợp lệ hoặc không tìm thấy payment cho orderCode: {}", orderCodeStr);
                 }
             }
         } catch (JsonProcessingException e) {
@@ -139,5 +166,5 @@ public class PaymentService {
         } catch (Exception e) {
             logger.error("Lỗi xử lý webhook: {}", e.getMessage());
         }
-    }*/
+    }
 }

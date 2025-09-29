@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
-    /*
     private final PaymentService paymentService;
 
     public PaymentController(PaymentService paymentService) {
@@ -24,5 +23,5 @@ public class PaymentController {
     public ResponseEntity<Void> handleWebhook(@RequestBody String webhookBody) throws Exception {
         paymentService.handleWebhook(webhookBody);
         return ResponseEntity.ok().build();
-    }*/
+    }
 }
