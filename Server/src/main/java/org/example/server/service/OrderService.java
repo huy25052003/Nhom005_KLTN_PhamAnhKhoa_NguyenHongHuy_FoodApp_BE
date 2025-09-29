@@ -7,9 +7,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -17,7 +19,14 @@ public class OrderService {
     private final OrderRepository orderRepo;
     private final UserRepository userRepo;
     private final ProductRepository productRepo;
-
+    private static final Map<String, Set<String>> ALLOWED = Map.of(
+            "PENDING", Set.of("CONFIRMED", "CANCELED"),
+            "CONFIRMED", Set.of("PREPARING", "CANCELED"),
+            "PREPARING", Set.of("DELIVERING", "DONE"),
+            "DELIVERING", Set.of("DONE"),
+            "DONE", Set.of(),
+            "CANCELED", Set.of()
+    );
     public Order placeOrder(String username, List<OrderItem> items) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -96,12 +105,26 @@ public class OrderService {
         }
     }
 
-    public Order updateStatus(Long orderId, String status) {
-        Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        ensureTransitionAllowed(order.getStatus(), status);
-        order.setStatus(status);
-        return orderRepo.save(order);
+    @Transactional
+    public Order updateStatus(Long id, String nextRaw) {
+        Order o = orderRepo.findById(id).orElseThrow(NoSuchElementException::new);
+        String cur  = normalize(o.getStatus());
+        String next = normalize(nextRaw);
+
+        if (cur.equals(next)) return o; // idempotent
+
+        Set<String> nexts = ALLOWED.getOrDefault(cur, Set.of());
+        if (!nexts.contains(next)) {
+            throw new RuntimeException("Invalid transition " + cur + " -> " + next);
+        }
+
+        o.setStatus(next);
+        o.setUpdatedAt(LocalDateTime.now());
+        return orderRepo.save(o);
+    }
+
+    private String normalize(String s) {
+        return s == null ? "" : s.trim().toUpperCase(Locale.ROOT);
     }
 
     public Order cancel(String username, Long orderId) {

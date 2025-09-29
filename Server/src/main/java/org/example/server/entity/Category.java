@@ -1,6 +1,7 @@
 package org.example.server.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,8 +25,8 @@ public class Category {
     @Column(length=500)
     private String description;
 
-    @OneToMany(mappedBy = "category")
-    @JsonIgnore
+    @OneToMany(mappedBy = "category" , fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"category"})
     private List<Product> products = new ArrayList<>();
 
 

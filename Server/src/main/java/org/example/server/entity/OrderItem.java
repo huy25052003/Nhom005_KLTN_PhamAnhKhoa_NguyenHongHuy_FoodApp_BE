@@ -26,6 +26,6 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
-    @JsonIgnoreProperties({"cartItems", "orderItems","category.products"})
+    @JsonIgnoreProperties({"items","category"})
     private Product product;
 }

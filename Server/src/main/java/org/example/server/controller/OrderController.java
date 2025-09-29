@@ -39,10 +39,9 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Order> updateStatus(@PathVariable Long id, @RequestParam String status) {
-        return ResponseEntity.ok(orderService.updateStatus(id, status));
+    public Order updateStatus(@PathVariable Long id, @RequestParam String status) {
+        return orderService.updateStatus(id, status);
     }
-
     // NEW: user huỷ đơn khi còn PENDING
     @PutMapping("/{id}/cancel")
     public ResponseEntity<Order> cancel(Authentication auth, @PathVariable Long id) {
