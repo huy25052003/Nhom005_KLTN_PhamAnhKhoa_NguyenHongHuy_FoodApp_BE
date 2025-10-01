@@ -39,6 +39,7 @@ public class Product {
     @JsonIgnoreProperties({"products"})
     private Category category;
 
+    @Column(length = 1000)
     private String imageUrl;
 
     @OneToMany(mappedBy = "product")

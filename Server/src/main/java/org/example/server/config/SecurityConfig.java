@@ -55,7 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/products/*/reviews").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
 
-
+                        .requestMatchers("/api/files/upload").hasRole("ADMIN")
 
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
