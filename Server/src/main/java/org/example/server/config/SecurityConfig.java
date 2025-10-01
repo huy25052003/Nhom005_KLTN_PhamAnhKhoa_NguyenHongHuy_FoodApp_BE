@@ -48,6 +48,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
 
                         .requestMatchers("/api/users/me/**").authenticated()
+                        .requestMatchers("/api/users/me/**").permitAll()
+
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/products/*/reviews").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
+
+
 
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
