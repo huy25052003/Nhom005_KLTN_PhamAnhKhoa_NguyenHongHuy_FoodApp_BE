@@ -35,7 +35,7 @@ public class Payment {
     private String payosPaymentLinkId; // ID link thanh toán từ PayOS
 
     @Column(length = 200)
-    private String status; // PENDING, SUCCESS, FAILED, CANCELLED
+    private String status; // PENDING, PAID, FAILED, CANCELLED
 
     @Column(length = 500)
     private String payosSignature; // Chữ ký từ PayOS để verify

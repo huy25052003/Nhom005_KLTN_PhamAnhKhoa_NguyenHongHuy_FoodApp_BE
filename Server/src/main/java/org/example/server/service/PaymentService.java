@@ -69,9 +69,9 @@ public class PaymentService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Sửa orderCode thành orderId (số) thay vì chuỗi "ORDER_" + orderId
+        String orderCode = String.valueOf(orderId);
         PaymentData paymentData = PaymentData.builder()
-                .orderCode(orderId) // Sử dụng orderId trực tiếp
+                .orderCode(Long.parseLong(orderCode))
                 .amount(order.getTotal().intValue())
                 .description("Thanh toán đơn hàng #" + orderId)
                 .returnUrl(returnUrl)
@@ -82,89 +82,139 @@ public class PaymentService {
         CheckoutResponseData response;
         try {
             response = payOS.createPaymentLink(paymentData);
+            logger.info("Tạo link thanh toán thành công cho orderId: {}, orderCode: {}, URL: {}",
+                    orderId, orderCode, response.getCheckoutUrl());
         } catch (Exception e) {
-            logger.error("Lỗi khi tạo link thanh toán cho orderId {}: {}", orderId, e.getMessage());
+            logger.error("Lỗi khi tạo link thanh toán cho orderId {}: {}", orderId, e.getMessage(), e);
             throw new RuntimeException("Không thể tạo link thanh toán: " + e.getMessage());
         }
 
         Payment payment = Payment.builder()
                 .order(order)
                 .amount(order.getTotal())
-                .payosOrderId(String.valueOf(orderId)) // Lưu orderId dưới dạng chuỗi
+                .payosOrderId(orderCode)
                 .payosPaymentLinkId(response.getPaymentLinkId())
                 .status("PENDING")
                 .paymentMethod("PAYOS")
                 .build();
 
         paymentRepository.save(payment);
+        logger.info("Đã lưu payment cho orderId: {}, payosOrderId: {}", orderId, payment.getPayosOrderId());
 
         return response.getCheckoutUrl();
     }
 
     public void handleWebhook(String webhookBody) {
+        logger.info("Nhận webhook: {}", webhookBody);
         try {
             Webhook webhook = objectMapper.readValue(webhookBody, Webhook.class);
+            logger.info("Webhook đã parse: {}", objectMapper.writeValueAsString(webhook));
             WebhookData webhookData = payOS.verifyPaymentWebhookData(webhook);
-            if (webhookData != null) {
-                logger.info("WebhookData received: {}", objectMapper.writeValueAsString(webhookData));
+            logger.info("Kết quả xác minh webhook: {}", webhookData != null ? "Hợp lệ" : "Không hợp lệ");
 
-                // Lấy dữ liệu từ webhookBody để xử lý linh hoạt
+            if (webhookData != null) {
                 JsonNode jsonNode = objectMapper.readTree(webhookBody);
                 JsonNode dataNode = jsonNode.get("data");
                 if (dataNode == null) {
-                    logger.warn("Dữ liệu webhook không hợp lệ: thiếu node 'data'");
+                    logger.warn("Webhook không hợp lệ: Thiếu node 'data'");
                     return;
                 }
 
-                // Lấy orderCode dưới dạng chuỗi và chuyển sang Long nếu cần
-                String orderCodeStr = dataNode.get("orderCode").asText();
-                Long orderCode = null;
-                try {
-                    orderCode = Long.parseLong(orderCodeStr.replaceAll("[^0-9]", "")); // Lọc số từ chuỗi
-                } catch (NumberFormatException e) {
-                    logger.warn("orderCode không hợp lệ: {}, bỏ qua", orderCodeStr);
+                String orderCodeStr = String.valueOf(dataNode.get("orderCode").asText());
+                JsonNode codeNode = dataNode.get("code");
+                JsonNode descNode = dataNode.get("desc");
+                if (codeNode == null || descNode == null) {
+                    logger.warn("Webhook không hợp lệ: Thiếu 'code' hoặc 'desc'");
                     return;
                 }
-
-                String status = dataNode.get("status").asText();
+                String code = codeNode.asText();
+                String desc = descNode.asText();
                 String signature = jsonNode.get("signature") != null ? jsonNode.get("signature").asText() : null;
+                logger.info("orderCode: {}, code: {}, desc: {}, signature: {}", orderCodeStr, code, desc, signature);
 
-                Payment payment = paymentRepository.findByPayosOrderId(orderCodeStr); // Tìm theo chuỗi gốc
+                Payment payment = paymentRepository.findByPayosOrderId(orderCodeStr);
                 if (payment != null) {
-                    payment.setStatus(status);
+                    logger.info("Tìm thấy payment ID: {}, Trạng thái hiện tại: {}", payment.getId(), payment.getStatus());
+                    payment.setStatus(code.equals("00") && desc.equalsIgnoreCase("success") ? "PAID" : "FAILED");
                     payment.setPayosSignature(signature);
                     paymentRepository.save(payment);
+                    logger.info("Đã lưu payment ID: {}, Trạng thái mới: {}", payment.getId(), payment.getStatus());
 
                     Order order = payment.getOrder();
-                    if ("SUCCESS".equals(status)) {
+                    logger.info("Đơn hàng ID: {}, Trạng thái hiện tại: {}", order.getId(), order.getStatus());
+                    if (code.equals("00") && desc.equalsIgnoreCase("success")) {
                         if (!"PENDING".equals(order.getStatus())) {
                             logger.warn("Đơn hàng {} không ở trạng thái PENDING, bỏ qua cập nhật", order.getId());
                             return;
                         }
                         order.setStatus("PAID");
                         orderRepository.save(order);
-                    } else if ("CANCELLED".equals(status) || "FAILED".equals(status)) {
+                        logger.info("Đã cập nhật đơn hàng {} thành PAID", order.getId());
+                    } else if (code.equals("99") || desc.equalsIgnoreCase("cancelled") || desc.equalsIgnoreCase("failed")) {
                         if (!"PENDING".equals(order.getStatus())) {
                             logger.warn("Đơn hàng {} không ở trạng thái PENDING, bỏ qua hoàn stock", order.getId());
                             return;
                         }
                         order.setStatus("FAILED");
                         orderRepository.save(order);
+                        logger.info("Đã cập nhật đơn hàng {} thành FAILED", order.getId());
 
                         for (OrderItem item : order.getItems()) {
                             Product product = item.getProduct();
                             product.setStock(product.getStock() + item.getQuantity());
                             productRepository.save(product);
+                            logger.info("Hoàn stock cho sản phẩm {}: +{}", product.getId(), item.getQuantity());
                         }
+                    } else {
+                        logger.warn("Trạng thái webhook không được hỗ trợ: code={}, desc={}", code, desc);
                     }
                 } else {
-                    logger.warn("Webhook không hợp lệ hoặc không tìm thấy payment cho orderCode: {}", orderCodeStr);
+                    logger.warn("Không tìm thấy payment cho orderCode: {}", orderCodeStr);
                 }
+            } else {
+                logger.warn("Xác minh webhook thất bại");
             }
         } catch (JsonProcessingException e) {
-            logger.error("Lỗi phân tích JSON webhook: {}", e.getMessage());
+            logger.error("Lỗi parse JSON webhook: {}", e.getMessage(), e);
         } catch (Exception e) {
-            logger.error("Lỗi xử lý webhook: {}", e.getMessage());
+            logger.error("Lỗi xử lý webhook: {}", e.getMessage(), e);
+        }
+    }
+
+    public Payment getPaymentByPayosOrderId(String orderCode) {
+        logger.info("Tìm payment cho orderCode: {}", orderCode);
+        Payment payment = paymentRepository.findByPayosOrderId(orderCode);
+        if (payment == null) {
+            logger.warn("Không tìm thấy payment cho orderCode: {}", orderCode);
+        }
+        return payment;
+    }
+
+    public void handleCancelRedirect(String orderCode) {
+        logger.info("Xử lý redirect hủy cho orderCode: {}", orderCode);
+        Payment payment = paymentRepository.findByPayosOrderId(orderCode);
+        if (payment != null && "PENDING".equals(payment.getStatus())) {
+            payment.setStatus("CANCELLED");
+            paymentRepository.save(payment);
+            logger.info("Đã cập nhật payment {} thành CANCELLED", payment.getId());
+
+            Order order = payment.getOrder();
+            if ("PENDING".equals(order.getStatus())) {
+                order.setStatus("CANCELLED");
+                orderRepository.save(order);
+                logger.info("Đã cập nhật đơn hàng {} thành CANCELLED", order.getId());
+
+                for (OrderItem item : order.getItems()) {
+                    Product product = item.getProduct();
+                    product.setStock(product.getStock() + item.getQuantity());
+                    productRepository.save(product);
+                    logger.info("Hoàn stock cho sản phẩm {}: +{}", product.getId(), item.getQuantity());
+                }
+            } else {
+                logger.warn("Đơn hàng {} không ở trạng thái PENDING, bỏ qua cập nhật", order.getId());
+            }
+        } else {
+            logger.warn("Không tìm thấy payment hoặc trạng thái không hợp lệ cho orderCode: {}", orderCode);
         }
     }
 }
