@@ -49,7 +49,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/users/me/**").authenticated()
                         .requestMatchers("/api/users/me/**").permitAll()
-                        .requestMatchers("/api/payments/webhook", "/success", "/cancel", "/favicon.ico").permitAll()
+                        .requestMatchers("/api/payments/webhook", "/pay/result", "/pay/cancel", "/favicon.ico").permitAll()
 
 
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
@@ -77,7 +77,9 @@ public class SecurityConfig {
         cfg.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
-                "http://192.168.1.*:*"
+                "http://192.168.1.*:*",
+                "http://10.0.2.2:*",
+                "https://*.ngrok-free.dev"
 
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
