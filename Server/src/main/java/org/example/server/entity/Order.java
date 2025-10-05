@@ -34,6 +34,10 @@ public class Order {
     @JsonManagedReference("order-item")
     private List<OrderItem> items = new ArrayList<>();
 
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "shipping_id")
+    private ShippingInfo shipping;
+
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();

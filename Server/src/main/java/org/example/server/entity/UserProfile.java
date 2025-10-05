@@ -22,6 +22,7 @@ public class UserProfile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    private String fullName;
     private Double heightCm;
     private Double weightKg;
     private String gender;

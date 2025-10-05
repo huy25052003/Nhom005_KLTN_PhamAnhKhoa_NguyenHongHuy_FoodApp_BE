@@ -2,7 +2,9 @@ package org.example.server.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.*;
-import org.example.server.repository.*;
+import org.example.server.repository.OrderRepository;
+import org.example.server.repository.ProductRepository;
+import org.example.server.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -16,20 +18,33 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
     private final OrderRepository orderRepo;
     private final UserRepository userRepo;
     private final ProductRepository productRepo;
+    private final CartService cartService;
+    private final ShippingInfoService shippingInfoService;
+
     private static final Map<String, Set<String>> ALLOWED = Map.of(
-            "PENDING", Set.of("CONFIRMED", "CANCELED"),
-            "CONFIRMED", Set.of("PREPARING", "CANCELED"),
-            "PREPARING", Set.of("DELIVERING", "DONE"),
-            "DELIVERING", Set.of("DONE"),
-            "DONE", Set.of(),
-            "CANCELED", Set.of()
+            "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
+            "CONFIRMED",  Set.of("PREPARING", "CANCELED", "CANCELLED"),
+            "PREPARING",  Set.of("DELIVERING", "DONE", "CANCELED", "CANCELLED"),
+            "DELIVERING", Set.of("DONE", "CANCELED", "CANCELLED"),
+            "DONE",       Set.of(),
+            "CANCELED",   Set.of(),
+            "CANCELLED",  Set.of()
     );
+
+
+
+    @Transactional
     public Order placeOrder(String username, List<OrderItem> items) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (items == null || items.isEmpty()) {
+            throw new RuntimeException("Danh sách món trống");
+        }
 
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItem i : items) {
@@ -43,17 +58,20 @@ public class OrderService {
 
             total = total.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
+        ShippingInfo shippingSnap = shippingInfoService.snapshotForOrder(user);
 
         Order order = Order.builder()
                 .user(user)
                 .total(total)
                 .status("PENDING")
+                .shipping(shippingSnap)
                 .build();
 
         items.forEach(i -> i.setOrder(order));
         order.setItems(items);
 
         Order saved = orderRepo.save(order);
+
         for (OrderItem i : saved.getItems()) {
             Product p = productRepo.findById(i.getProduct().getId())
                     .orElseThrow();
@@ -63,47 +81,37 @@ public class OrderService {
         return saved;
     }
 
+
+    @Transactional(readOnly = true)
     public List<Order> getUserOrders(String username) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return orderRepo.findByUser(user);
     }
 
+    @Transactional(readOnly = true)
     public Order getOne(Authentication auth, Long id) {
         Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin && !order.getUser().getUsername().equals(auth.getName())) {
             throw new RuntimeException("Forbidden");
         }
+        // chạm lazy
+        if (order.getShipping() != null) order.getShipping().getId();
+        order.getItems().forEach(oi -> {
+            if (oi.getProduct() != null) oi.getProduct().getId();
+        });
         return order;
     }
 
+    @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
         return orderRepo.findAll(PageRequest.of(page, size));
     }
 
-    private void ensureTransitionAllowed(String from, String to) {
-        switch (from) {
-            case "PENDING" -> {
-                if (!(to.equals("PAID") || to.equals("CANCELLED"))) {
-                    throw new RuntimeException("Invalid transition PENDING -> " + to);
-                }
-            }
-            case "PAID" -> {
-                if (!(to.equals("SHIPPED"))) {
-                    throw new RuntimeException("Invalid transition PAID -> " + to);
-                }
-            }
-            case "SHIPPED" -> {
-                if (!(to.equals("DELIVERED"))) {
-                    throw new RuntimeException("Invalid transition SHIPPED -> " + to);
-                }
-            }
-            default -> throw new RuntimeException("Order is final, cannot change from " + from);
-        }
-    }
 
     @Transactional
     public Order updateStatus(Long id, String nextRaw) {
@@ -111,7 +119,7 @@ public class OrderService {
         String cur  = normalize(o.getStatus());
         String next = normalize(nextRaw);
 
-        if (cur.equals(next)) return o; // idempotent
+        if (Objects.equals(cur, next)) return o; // idempotent
 
         Set<String> nexts = ALLOWED.getOrDefault(cur, Set.of());
         if (!nexts.contains(next)) {
@@ -124,19 +132,25 @@ public class OrderService {
     }
 
     private String normalize(String s) {
-        return s == null ? "" : s.trim().toUpperCase(Locale.ROOT);
+        if (s == null) return "";
+        String up = s.trim().toUpperCase(Locale.ROOT);
+        if ("CANCELLED".equals(up)) return "CANCELED";
+        return up;
     }
 
+
+    @Transactional
     public Order cancel(String username, Long orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         if (!order.getUser().getUsername().equals(username)) {
             throw new RuntimeException("Forbidden");
         }
-        if (!"PENDING".equals(order.getStatus())) {
+        String cur = normalize(order.getStatus());
+        if (!"PENDING".equals(cur)) {
             throw new RuntimeException("Only PENDING order can be cancelled");
         }
-        order.setStatus("CANCELLED");
+        order.setStatus("CANCELED");
         Order saved = orderRepo.save(order);
 
         for (OrderItem i : saved.getItems()) {
