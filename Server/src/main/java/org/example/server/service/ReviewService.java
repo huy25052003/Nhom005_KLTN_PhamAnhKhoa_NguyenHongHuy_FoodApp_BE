@@ -28,20 +28,25 @@ public class ReviewService {
     }
 
     @Transactional
-    public Review create(Authentication auth, Long productId, int rating, String comment) {
+    public Review create(Long productId, int rating, String comment, Authentication auth) {
         if (rating < 1 || rating > 5) {
-            throw new IllegalArgumentException("Rating phải 1..5");
+            throw new IllegalArgumentException("Rating phải từ 1 đến 5");
         }
 
-        User user = userRepo.findByUsername(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
         Product product = productRepo.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-         if (reviewRepo.existsByUserAndProductId(user, productId)) {
-             throw new RuntimeException("Bạn đã đánh giá sản phẩm này.");
-         }
+        User user;
+        if (auth != null && auth.isAuthenticated()) {
+            user = userRepo.findByUsername(auth.getName())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            if (reviewRepo.existsByUserAndProductId(user, productId)) {
+                throw new RuntimeException("Bạn đã đánh giá sản phẩm này.");
+            }
+        } else {
+            user = userRepo.findByUsername("guest")
+                    .orElseThrow(() -> new RuntimeException("Tài khoản khách không tồn tại"));
+        }
 
         Review r = new Review();
         r.setUser(user);
@@ -55,12 +60,17 @@ public class ReviewService {
     @Transactional
     public void delete(Authentication auth, Long reviewId) {
         Review r = reviewRepo.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("Review not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá"));
+
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("Vui lòng đăng nhập để xóa đánh giá");
+        }
 
         boolean isOwner = r.getUser() != null && r.getUser().getUsername().equals(auth.getName());
         boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (!isOwner && !isAdmin) {
-            throw new RuntimeException("Không có quyền xoá review này");
+        boolean isGuestReview = r.getUser() != null && r.getUser().getUsername().equals("guest");
+        if (!isOwner && !isAdmin && !isGuestReview) {
+            throw new RuntimeException("Không có quyền xóa đánh giá này");
         }
         reviewRepo.delete(r);
     }

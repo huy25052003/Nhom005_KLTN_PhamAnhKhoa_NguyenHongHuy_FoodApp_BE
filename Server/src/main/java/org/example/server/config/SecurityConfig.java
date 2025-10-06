@@ -35,45 +35,43 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Cho phép các request OPTIONS cho CORS
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Các endpoint công khai (ưu tiên cao nhất)
                         .requestMatchers("/api/auth/**", "/actuator/**").permitAll()
-
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
-                        .requestMatchers("/api/products/**").hasRole("ADMIN")
-
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
-                        .requestMatchers("/api/categories/**").hasRole("ADMIN")
-
-                        .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
-
-                        .requestMatchers("/api/users/me/**").authenticated()
-                        .requestMatchers("/api/users/me/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                         .requestMatchers("/api/payments/webhook", "/pay/result", "/pay/cancel", "/favicon.ico").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").permitAll() // Đảm bảo permitAll
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/avg").permitAll()
 
-
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/products/*/reviews").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
-
+                        // Các endpoint yêu cầu quyền ADMIN
+                        .requestMatchers("/api/products/**").hasRole("ADMIN")
+                        .requestMatchers("/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
                         .requestMatchers("/api/files/upload").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
 
+                        // Các endpoint yêu cầu xác thực (authenticated)
+                        .requestMatchers("/api/users/me/**").authenticated()
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
-
                         .requestMatchers("/api/shipping/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
 
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/orders/*").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/orders").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/orders").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
-
+                        // Tất cả các request khác yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
@@ -83,10 +81,9 @@ public class SecurityConfig {
                 "http://192.168.1.*:*",
                 "http://10.0.2.2:*",
                 "https://*.ngrok-free.dev"
-
         ));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Requested-With"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
 
@@ -104,6 +101,4 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
     }
-
-
 }
