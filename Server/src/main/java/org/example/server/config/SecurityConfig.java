@@ -47,6 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").permitAll() // Đảm bảo permitAll
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/avg").permitAll()
+                        .requestMatchers("/api/favorites/**").permitAll()
+
 
                         // Các endpoint yêu cầu quyền ADMIN
                         .requestMatchers("/api/products/**").hasRole("ADMIN")
@@ -63,9 +65,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
                         .requestMatchers("/api/shipping/me").authenticated()
+                        .requestMatchers("/api/favorites/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
+
+
 
                         // Tất cả các request khác yêu cầu xác thực
                         .anyRequest().authenticated()
