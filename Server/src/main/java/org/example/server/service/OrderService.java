@@ -24,6 +24,7 @@ public class OrderService {
     private final ProductRepository productRepo;
     private final CartService cartService;
     private final ShippingInfoService shippingInfoService;
+    private final PromotionService promotionService;
 
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
@@ -39,32 +40,43 @@ public class OrderService {
 
     @Transactional
     public Order placeOrder(String username, List<OrderItem> items) {
+        return placeOrder(username, items, null);
+    }
+
+    @Transactional
+    public Order placeOrder(String username, List<OrderItem> items, String promoCode) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (items == null || items.isEmpty()) {
-            throw new RuntimeException("Danh sách món trống");
-        }
-
-        BigDecimal total = BigDecimal.ZERO;
+        // set giá từ DB + kiểm tồn
+        BigDecimal subtotal = BigDecimal.ZERO;
         for (OrderItem i : items) {
             Product p = productRepo.findById(i.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + i.getProduct().getId()));
-
             if (p.getStock() < i.getQuantity()) {
                 throw new RuntimeException("Out of stock for product: " + p.getId());
             }
             i.setPrice(p.getPrice());
-
-            total = total.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
+            subtotal = subtotal.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
-        ShippingInfo shippingSnap = shippingInfoService.snapshotForOrder(user);
+
+        BigDecimal discount = BigDecimal.ZERO;
+        Promotion applied = null;
+        if (promoCode != null && !promoCode.isBlank()) {
+            var res = promotionService.preview(promoCode, items);
+            discount = res.discount();
+            applied  = res.promotion(); // có thể null nếu mã ko hợp lệ
+        }
+
+        BigDecimal total = subtotal.subtract(discount);
+        if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
 
         Order order = Order.builder()
                 .user(user)
                 .total(total)
+                .discount(discount)
+                .promotionCode(applied != null ? applied.getCode() : null)
                 .status("PENDING")
-                .shipping(shippingSnap)
                 .build();
 
         items.forEach(i -> i.setOrder(order));
@@ -72,12 +84,16 @@ public class OrderService {
 
         Order saved = orderRepo.save(order);
 
+        // Trừ tồn
         for (OrderItem i : saved.getItems()) {
-            Product p = productRepo.findById(i.getProduct().getId())
-                    .orElseThrow();
+            Product p = productRepo.findById(i.getProduct().getId()).orElseThrow();
             p.setStock(p.getStock() - i.getQuantity());
             productRepo.save(p);
         }
+
+        // tăng dùng mã
+        if (applied != null) promotionService.increaseUsage(applied);
+
         return saved;
     }
 

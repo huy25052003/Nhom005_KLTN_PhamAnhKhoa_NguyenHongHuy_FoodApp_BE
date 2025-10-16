@@ -22,6 +22,11 @@ public class Order {
 
     private String status;
 
+    @Column(precision = 18, scale = 2)
+    private BigDecimal discount;
+
+    private String promotionCode;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

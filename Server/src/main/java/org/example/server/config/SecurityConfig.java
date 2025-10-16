@@ -53,8 +53,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/categories/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
                         .requestMatchers("/api/files/upload").hasRole("ADMIN")
+                        .requestMatchers("/api/promotions/preview").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
+
 
                         // Các endpoint yêu cầu xác thực (authenticated)
                         .requestMatchers("/api/users/me/**").authenticated()
