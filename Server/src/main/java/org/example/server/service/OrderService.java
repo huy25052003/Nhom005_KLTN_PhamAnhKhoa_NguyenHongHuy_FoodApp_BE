@@ -25,6 +25,7 @@ public class OrderService {
     private final CartService cartService;
     private final ShippingInfoService shippingInfoService;
     private final PromotionService promotionService;
+    private final NotificationService notificationService;
 
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
@@ -93,7 +94,7 @@ public class OrderService {
 
         // tăng dùng mã
         if (applied != null) promotionService.increaseUsage(applied);
-
+        notificationService.newOrderNotify(saved);
         return saved;
     }
 
