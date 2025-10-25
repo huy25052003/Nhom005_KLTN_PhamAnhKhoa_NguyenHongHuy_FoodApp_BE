@@ -37,7 +37,7 @@ public class AuthService {
         User user = User.builder()
                 .username(req.username())
                 .password(passwordEncoder.encode(req.password()))
-                .roles(Set.of("ROLE_USER")) // mặc định user mới
+                .roles(Set.of("ROLE_ADMIN")) // mặc định user mới
                 .build();
         userRepo.save(user);
     }
