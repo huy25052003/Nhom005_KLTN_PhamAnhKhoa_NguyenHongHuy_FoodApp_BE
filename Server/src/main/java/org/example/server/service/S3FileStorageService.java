@@ -20,13 +20,13 @@ import java.util.UUID;
 public class S3FileStorageService {
     private final S3Client s3;
 
-    @Value("${app.s3.bucket}")
+    @Value("${s3.bucket}")
     private String bucket;
 
-    @Value("${app.s3.region}")
+    @Value("${aws.region}")
     private String region;
 
-    @Value("${app.s3.prefix}")
+    @Value("${s3.prefix}")
     private String prefix;
 
     public String uploadPublic(MultipartFile file) {
