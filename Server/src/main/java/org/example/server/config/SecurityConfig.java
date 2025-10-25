@@ -1,5 +1,4 @@
 package org.example.server.config;
-
 import org.example.server.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,22 +34,21 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Cho phép các request OPTIONS cho CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // Các endpoint công khai (ưu tiên cao nhất)
-                        .requestMatchers("/api/auth/**", "/actuator/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                         .requestMatchers("/api/payments/webhook", "/pay/result", "/pay/cancel", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").permitAll() // Đảm bảo permitAll
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/avg").permitAll()
+
                         .requestMatchers("/api/favorites/**").permitAll()
 
+                        .requestMatchers("/chat-ws/**").permitAll() // Bỏ qua xác thực cho WebSocket
 
-                        // Các endpoint yêu cầu quyền ADMIN
                         .requestMatchers("/api/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/categories/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
@@ -59,8 +57,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
 
-
-                        // Các endpoint yêu cầu xác thực (authenticated)
                         .requestMatchers("/api/users/me/**").authenticated()
                         .requestMatchers("/api/orders/my").authenticated()
                         .requestMatchers("/api/orders/*/cancel").authenticated()
@@ -69,28 +65,20 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
-
-
-
-                        // Tất cả các request khác yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, e) -> res.sendError(401)))
+                .logout(logout -> logout.disable());
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://192.168.1.*:*",
-                "http://10.0.2.2:*",
-                "https://*.ngrok-free.dev"
-        ));
+        cfg.setAllowedOrigins(List.of("*")); // Chấp nhận mọi nguồn, bao gồm ws://
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        cfg.setAllowedHeaders(List.of("*")); // Chấp nhận mọi header
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
 
