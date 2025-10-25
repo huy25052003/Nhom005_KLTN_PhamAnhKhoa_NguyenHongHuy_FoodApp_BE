@@ -25,26 +25,41 @@ public class ChatService {
     // Lấy hoặc tạo cuộc trò chuyện giữa admin và khách hàng
     @Transactional
     public Conversation getOrCreateConversation(Long customerId, Authentication auth) {
-        // Giả sử admin được lấy từ authentication (có role ADMIN)
-        User admin = userRepository.findByUsername(auth.getName())
-                .filter(user -> user.getRoles().contains("ADMIN"))
-                .orElseThrow(() -> new SecurityException("Chỉ admin mới có thể khởi tạo chat"));
+        User initiator = userRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new SecurityException("Người dùng không tồn tại"));
 
-        // Kiểm tra xem khách hàng đã có cuộc trò chuyện chưa
-        Conversation existingConversation = conversationRepository.findByCustomerId(customerId);
-        if (existingConversation != null) {
-            return existingConversation;
+        if (initiator.getRoles().contains("ROLE_USER")) {
+            // Khách hàng tạo cuộc trò chuyện, chọn admin mặc định
+            User admin = userRepository.findByRolesContaining("ADMIN")
+                    .stream().findFirst()
+                    .orElseThrow(() -> new SecurityException("Không tìm thấy admin"));
+            Conversation existingConversation = conversationRepository.findByCustomerId(initiator.getId());
+            if (existingConversation != null) {
+                return existingConversation;
+            }
+            Conversation conversation = Conversation.builder()
+                    .admin(admin)
+                    .customer(initiator)
+                    .build();
+            return conversationRepository.save(conversation);
         }
 
-        // Tạo cuộc trò chuyện mới
-        User customer = userRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("Khách hàng không tồn tại"));
+        if (initiator.getRoles().contains("ADMIN")) {
+            // Admin tạo cuộc trò chuyện với customerId được chỉ định
+            User customer = userRepository.findById(customerId)
+                    .orElseThrow(() -> new IllegalArgumentException("Khách hàng không tồn tại"));
+            Conversation existingConversation = conversationRepository.findByCustomerId(customerId);
+            if (existingConversation != null) {
+                return existingConversation;
+            }
+            Conversation conversation = Conversation.builder()
+                    .admin(initiator)
+                    .customer(customer)
+                    .build();
+            return conversationRepository.save(conversation);
+        }
 
-        Conversation conversation = Conversation.builder()
-                .admin(admin)
-                .customer(customer)
-                .build();
-        return conversationRepository.save(conversation);
+        throw new SecurityException("Không có quyền khởi tạo cuộc trò chuyện");
     }
 
     // Lấy danh sách tin nhắn của một cuộc trò chuyện
@@ -53,16 +68,28 @@ public class ChatService {
         return messageRepository.findByConversationId(conversationId);
     }
 
+    // Lấy thông tin cuộc trò chuyện theo ID
+    @Transactional(readOnly = true)
+    public Conversation getConversation(Long conversationId) {
+        return conversationRepository.findById(conversationId)
+                .orElse(null); // Trả về null nếu không tìm thấy
+    }
+
     // Gửi tin nhắn và cập nhật trạng thái
     @Transactional
     public Message sendMessage(Long conversationId, Long senderId, String content, Authentication auth) {
         // Kiểm tra quyền gửi tin nhắn
         User sender = userRepository.findById(senderId)
-                .filter(user -> user.getUsername().equals(auth.getName()) || user.getRoles().contains("ADMIN"))
+                .filter(user -> user.getUsername().equals(auth.getName()) &&
+                        (user.getRoles().contains("ADMIN") || user.getRoles().contains("ROLE_USER")))
                 .orElseThrow(() -> new SecurityException("Không có quyền gửi tin nhắn"));
 
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new IllegalArgumentException("Cuộc trò chuyện không tồn tại"));
+
+        if (!conversation.getAdmin().getId().equals(senderId) && !conversation.getCustomer().getId().equals(senderId)) {
+            throw new SecurityException("Chỉ admin hoặc khách hàng trong cuộc trò chuyện mới có thể gửi tin nhắn");
+        }
 
         Message message = Message.builder()
                 .conversation(conversation)

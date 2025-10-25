@@ -21,18 +21,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthFilter.class);
     private final JwtService jwtService;
 
-    public JwtAuthFilter(JwtService jwtService) { this.jwtService = jwtService; }
+    public JwtAuthFilter(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        String path = request.getRequestURI();
+        // Bỏ qua filter cho endpoint đăng nhập và WebSocket
+        if (path.startsWith("/api/auth/") || path.startsWith("/chat-ws")) {
+            log.debug("Skipping JWT validation for path: {}", path);
+            chain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7).trim();
             try {
                 String username = jwtService.extractUsername(token);
                 if (username != null && jwtService.isValid(token, username)) {
-                    String[] roles = jwtService.extractRoles(token); // có thể null/empty
+                    String[] roles = jwtService.extractRoles(token);
                     Collection<SimpleGrantedAuthority> authorities =
                             (roles == null ? java.util.List.<SimpleGrantedAuthority>of()
                                     : Arrays.stream(roles)
