@@ -88,9 +88,9 @@ public class SecurityConfig {
                 "http://127.0.0.1:*",
                 "http://192.168.1.*:*",
                 "http://10.0.2.2:*",
-                "https://*.ngrok-free.dev",
-                "https://*.onrender.com",
-                "https://nhom005foodapp.vercel.app/*"
+                "https://nhom005foodapp.vercel.app",
+                "https://*.vercel.app",
+                "https://*.onrender.com"
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
