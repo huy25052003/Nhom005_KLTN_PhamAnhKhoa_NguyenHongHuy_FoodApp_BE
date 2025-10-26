@@ -14,6 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
 public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,8 +27,8 @@ public class Category {
     private String description;
 
     @OneToMany(mappedBy = "category" , fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"category"})
-    private List<Product> products = new ArrayList<>();
+    @JsonIgnore
+    private List<Product> products;
 
 
 }

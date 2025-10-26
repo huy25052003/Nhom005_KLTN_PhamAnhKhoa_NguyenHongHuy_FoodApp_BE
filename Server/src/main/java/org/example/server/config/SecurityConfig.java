@@ -74,7 +74,7 @@ public class SecurityConfig {
 
 
                         // Tất cả các request khác yêu cầu xác thực
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
