@@ -2,6 +2,7 @@ package org.example.server.controller;
 
 import org.example.server.service.PaymentService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,6 +15,7 @@ public class PaymentController {
     }
 
     @PostMapping("/create/{orderId}")
+    @Transactional
     public ResponseEntity<String> createPayment(@PathVariable Long orderId) throws Exception {
         String paymentUrl = paymentService.createPaymentLink(orderId);
         return ResponseEntity.ok(paymentUrl);
