@@ -9,7 +9,7 @@ RUN mvn -q -DskipTests=true package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-ENV JAVA_OPTS="-XX:+UseG1GC **-Xmx490m**"
+ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=85"
 EXPOSE 8080
 COPY --from=build /app/target/foodapp-server.jar /app/app.jar
 ENV SERVER_FORWARD_HEADERS_STRATEGY=framework
