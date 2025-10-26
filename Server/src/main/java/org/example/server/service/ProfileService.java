@@ -17,7 +17,7 @@ public class ProfileService {
     private final UserRepository userRepo;
     private final UserProfileRepository profileRepo;
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public UserProfile getMyProfile(Authentication auth) {
         User user = userRepo.findByUsername(auth.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));

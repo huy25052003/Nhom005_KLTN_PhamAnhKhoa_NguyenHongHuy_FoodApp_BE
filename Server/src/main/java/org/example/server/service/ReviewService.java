@@ -22,7 +22,7 @@ public class ReviewService {
     private final ProductRepository productRepo;
     private final UserRepository userRepo;
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public List<ReviewRepository.ReviewView> listByProduct(Long productId) {
         return reviewRepo.findViewByProductId(productId);
     }
@@ -75,7 +75,7 @@ public class ReviewService {
         reviewRepo.delete(r);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public double getAverageRating(Long productId) {
         return reviewRepo.avgRating(productId);
     }

@@ -22,7 +22,7 @@ public class ShippingInfoService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public ShippingInfo getMy(Authentication auth) {
         User u = requireUser(auth);
         return shippingRepo.findByUser(u).orElseGet(() -> {

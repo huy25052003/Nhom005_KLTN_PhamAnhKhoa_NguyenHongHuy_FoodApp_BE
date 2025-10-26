@@ -99,14 +99,14 @@ public class OrderService {
     }
 
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public List<Order> getUserOrders(String username) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return orderRepo.findByUser(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public Order getOne(Authentication auth, Long id) {
         Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -124,7 +124,7 @@ public class OrderService {
         return order;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public Page<Order> getAllOrders(int page, int size) {
         return orderRepo.findAll(PageRequest.of(page, size));
     }

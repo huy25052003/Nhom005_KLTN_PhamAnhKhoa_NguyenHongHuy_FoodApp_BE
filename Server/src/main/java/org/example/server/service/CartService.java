@@ -33,7 +33,7 @@ public class CartService {
         return c;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional( )
     public Cart getCart(Authentication auth) {
         String username = auth.getName();
         return cartRepo.findByUsernameWithItemsAndProduct(username)
