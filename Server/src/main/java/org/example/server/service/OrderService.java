@@ -8,6 +8,7 @@ import org.example.server.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,12 +41,12 @@ public class OrderService {
 
 
     @Transactional
-    public Order placeOrder(String username, List<OrderItem> items) {
-        return placeOrder(username, items, null);
+    public Order placeOrder(String username, List<OrderItem> items, Map<String, Object> shippingData, String paymentMethod) {
+        return placeOrder(username, items, null, shippingData, paymentMethod );
     }
 
     @Transactional
-    public Order placeOrder(String username, List<OrderItem> items, String promoCode) {
+    public Order placeOrder(String username, List<OrderItem> items, String promoCode, Map<String, Object> shippingData, String paymentMethod) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -58,6 +59,7 @@ public class OrderService {
                 throw new RuntimeException("Out of stock for product: " + p.getId());
             }
             i.setPrice(p.getPrice());
+            i.setProduct(p);
             subtotal = subtotal.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
 
@@ -71,6 +73,14 @@ public class OrderService {
 
         BigDecimal total = subtotal.subtract(discount);
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null || !auth.getName().equals("username")) {
+            throw new RuntimeException("Authentication context error");
+        }
+
+        shippingInfoService.upsertMy(auth,shippingData);
+        ShippingInfo shippingSnapshot = shippingInfoService.snapshotForOrder(user);
 
         Order order = Order.builder()
                 .user(user)
@@ -95,18 +105,19 @@ public class OrderService {
         // tăng dùng mã
         if (applied != null) promotionService.increaseUsage(applied);
         notificationService.newOrderNotify(saved);
+        cartService.clear(auth);
         return saved;
     }
 
 
-    @Transactional( )
+    @Transactional(readOnly = true)
     public List<Order> getUserOrders(String username) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return orderRepo.findByUser(user);
+        return orderRepo.findByUserWithItems(user);
     }
 
-    @Transactional( )
+    @Transactional( readOnly = true)
     public Order getOne(Authentication auth, Long id) {
         Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -124,7 +135,7 @@ public class OrderService {
         return order;
     }
 
-    @Transactional( )
+    @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
         return orderRepo.findAll(PageRequest.of(page, size));
     }

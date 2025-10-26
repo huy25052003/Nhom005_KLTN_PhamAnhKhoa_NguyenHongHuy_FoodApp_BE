@@ -25,6 +25,8 @@ public class Order {
     @Column(precision = 18, scale = 2)
     private BigDecimal discount;
 
+    private String paymentMethod;
+
     private String promotionCode;
 
     private LocalDateTime createdAt;

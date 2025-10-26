@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -16,9 +17,20 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
+    public record PlaceOrderRequest(
+            List<OrderItem> items,
+            Map<String, Object> shippingInfo,
+            String paymentMethod,
+            String promoCode
+            ){}
+
     @PostMapping
-    public ResponseEntity<Order> placeOrder(Authentication auth, @RequestBody List<OrderItem> items) {
-        return ResponseEntity.ok(orderService.placeOrder(auth.getName(), items));
+    public ResponseEntity<Order> placeOrder(Authentication auth, @RequestBody PlaceOrderRequest request) throws Exception {
+        return ResponseEntity.ok(orderService.placeOrder(auth.getName(),
+                request.items(),
+                request.promoCode(),
+                request.shippingInfo(),
+                request.paymentMethod()));
     }
 
     @GetMapping("/my")
