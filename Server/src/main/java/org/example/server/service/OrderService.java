@@ -7,10 +7,12 @@ import org.example.server.repository.ProductRepository;
 import org.example.server.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable; // Thêm import
+import org.springframework.data.domain.Sort; // Thêm import
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,25 +40,17 @@ public class OrderService {
             "CANCELLED",  Set.of()
     );
 
-
-
-    @Transactional
-    public Order placeOrder(String username, List<OrderItem> items, Map<String, Object> shippingData, String paymentMethod) {
-        return placeOrder(username, items, null, shippingData, paymentMethod );
-    }
-
     @Transactional
     public Order placeOrder(String username, List<OrderItem> items, String promoCode, Map<String, Object> shippingData, String paymentMethod) {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // set giá từ DB + kiểm tồn
         BigDecimal subtotal = BigDecimal.ZERO;
         for (OrderItem i : items) {
             Product p = productRepo.findById(i.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + i.getProduct().getId()));
             if (p.getStock() < i.getQuantity()) {
-                throw new RuntimeException("Out of stock for product: " + p.getId());
+                throw new RuntimeException("Out of stock for product: " + p.getName());
             }
             i.setPrice(p.getPrice());
             i.setProduct(p);
@@ -68,18 +62,18 @@ public class OrderService {
         if (promoCode != null && !promoCode.isBlank()) {
             var res = promotionService.preview(promoCode, items);
             discount = res.discount();
-            applied  = res.promotion(); // có thể null nếu mã ko hợp lệ
+            applied = res.promotion();
         }
 
         BigDecimal total = subtotal.subtract(discount);
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null || !auth.getName().equals("username")) {
+        if (auth == null || !auth.getName().equals(username)) {
             throw new RuntimeException("Authentication context error");
         }
 
-        shippingInfoService.upsertMy(auth,shippingData);
+        shippingInfoService.upsertMy(auth, shippingData);
         ShippingInfo shippingSnapshot = shippingInfoService.snapshotForOrder(user);
 
         Order order = Order.builder()
@@ -88,6 +82,8 @@ public class OrderService {
                 .discount(discount)
                 .promotionCode(applied != null ? applied.getCode() : null)
                 .status("PENDING")
+                .paymentMethod(paymentMethod.toUpperCase())
+                .shipping(shippingSnapshot)
                 .build();
 
         items.forEach(i -> i.setOrder(order));
@@ -95,20 +91,18 @@ public class OrderService {
 
         Order saved = orderRepo.save(order);
 
-        // Trừ tồn
         for (OrderItem i : saved.getItems()) {
-            Product p = productRepo.findById(i.getProduct().getId()).orElseThrow();
+            Product p = i.getProduct();
             p.setStock(p.getStock() - i.getQuantity());
             productRepo.save(p);
         }
-
-        // tăng dùng mã
         if (applied != null) promotionService.increaseUsage(applied);
         notificationService.newOrderNotify(saved);
+
         cartService.clear(auth);
+
         return saved;
     }
-
 
     @Transactional(readOnly = true)
     public List<Order> getUserOrders(String username) {
@@ -117,9 +111,9 @@ public class OrderService {
         return orderRepo.findByUserWithItems(user);
     }
 
-    @Transactional( readOnly = true)
+    @Transactional(readOnly = true)
     public Order getOne(Authentication auth, Long id) {
-        Order order = orderRepo.findById(id)
+        Order order = orderRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         boolean isAdmin = auth.getAuthorities().stream()
@@ -127,19 +121,14 @@ public class OrderService {
         if (!isAdmin && !order.getUser().getUsername().equals(auth.getName())) {
             throw new RuntimeException("Forbidden");
         }
-        // chạm lazy
-        if (order.getShipping() != null) order.getShipping().getId();
-        order.getItems().forEach(oi -> {
-            if (oi.getProduct() != null) oi.getProduct().getId();
-        });
         return order;
     }
 
     @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
-        return orderRepo.findAll(PageRequest.of(page, size));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return orderRepo.findAllWithUserDetails(pageable);
     }
-
 
     @Transactional
     public Order updateStatus(Long id, String nextRaw) {
@@ -147,7 +136,7 @@ public class OrderService {
         String cur  = normalize(o.getStatus());
         String next = normalize(nextRaw);
 
-        if (Objects.equals(cur, next)) return o; // idempotent
+        if (Objects.equals(cur, next)) return o;
 
         Set<String> nexts = ALLOWED.getOrDefault(cur, Set.of());
         if (!nexts.contains(next)) {
@@ -166,11 +155,11 @@ public class OrderService {
         return up;
     }
 
-
     @Transactional
     public Order cancel(String username, Long orderId) {
-        Order order = orderRepo.findById(orderId)
+        Order order = orderRepo.findByIdWithDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
         if (!order.getUser().getUsername().equals(username)) {
             throw new RuntimeException("Forbidden");
         }
@@ -179,11 +168,15 @@ public class OrderService {
             throw new RuntimeException("Only PENDING order can be cancelled");
         }
         order.setStatus("CANCELED");
+        order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
 
         for (OrderItem i : saved.getItems()) {
-            Product p = productRepo.findById(i.getProduct().getId())
-                    .orElseThrow();
+            Product p = i.getProduct();
+            if (p == null) {
+                System.err.println("Warning: Product not found for OrderItem ID: " + i.getId() + " during cancellation of Order ID: " + orderId);
+                continue;
+            }
             p.setStock(p.getStock() + i.getQuantity());
             productRepo.save(p);
         }

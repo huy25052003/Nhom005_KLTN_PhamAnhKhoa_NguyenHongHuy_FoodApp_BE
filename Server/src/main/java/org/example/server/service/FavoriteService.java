@@ -82,7 +82,7 @@ public class FavoriteService {
     public Page<Product> myFavorites(Authentication auth, int page, int size) {
         var user = getUser(auth);
         // trả về Page<Favorite> rồi map sang Page<Product> (nhanh gọn):
-        var pf = favRepo.findByUser(user, PageRequest.of(page, size));
+        var pf = favRepo.findByUserWithProductAndCategory(user, PageRequest.of(page, size));
         return pf.map(Favorite::getProduct);
     }
 }

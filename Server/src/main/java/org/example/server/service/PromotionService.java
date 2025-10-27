@@ -22,6 +22,7 @@ public class PromotionService {
     public static record ApplyResult(BigDecimal discount, Promotion promotion, String message) {}
 
     /** Tính discount cho 1 danh sách OrderItem thô (productId + quantity + price sẽ set lại theo DB) */
+    @Transactional
     public ApplyResult preview(String code, List<OrderItem> items) {
         if (code == null || code.trim().isEmpty()) {
             return new ApplyResult(BigDecimal.ZERO, null, "Không có mã khuyến mãi.");

@@ -59,7 +59,7 @@ public class PaymentService {
         this.productRepository = productRepository;
         this.cartRepository = cartRepository;
     }
-
+    @Transactional
     public String createPaymentLink(Long orderId) throws Exception {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại"));
