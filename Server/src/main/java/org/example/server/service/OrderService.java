@@ -170,7 +170,7 @@ public class OrderService {
         order.setStatus("CANCELED");
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
-
+        
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             if (p == null) {

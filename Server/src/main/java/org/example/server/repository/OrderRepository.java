@@ -22,7 +22,9 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     List<Order> findByUserWithItems(@Param("user") User user);
     @Query(value = "SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.user u " +
-            "LEFT JOIN FETCH o.shipping s ",
+            "LEFT JOIN FETCH o.shipping s "+
+            "LEFT JOIN FETCH o.items i "+
+            "LEFT JOIN FETCH i.product p ",
             countQuery = "SELECT COUNT(o) FROM Order o") // Cần countQuery riêng khi dùng FETCH với Pageable
     Page<Order> findAllWithUserDetails(Pageable pageable);
 
