@@ -7,6 +7,7 @@ import org.example.server.repository.NotificationRepository;
 import org.example.server.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -20,18 +21,21 @@ public class AdminNotificationController {
 
     // Lấy 50 bản ghi gần nhất (broadcast cho tất cả admin)
     @GetMapping
+    @Transactional(readOnly = true)
     public List<Notification> list() {
         return notificationRepo.findTop50ByRecipientIsNullOrderByCreatedAtDesc();
     }
 
     // Đếm unread (broadcast)
     @GetMapping("/unread-count")
+    @Transactional(readOnly = true)
     public Map<String, Object> unreadCount(Authentication auth) {
         long c = notificationRepo.countByRecipientIsNullAndReadFlagFalse();
         return Map.of("unread", c);
     }
 
     @PostMapping("/{id}/read")
+    @Transactional
     public ResponseEntity<?> markRead(@PathVariable Long id) {
         return notificationRepo.findById(id)
                 .map(n -> {
@@ -43,6 +47,7 @@ public class AdminNotificationController {
     }
 
     @PostMapping("/read-all")
+    @Transactional
     public Map<String, Object> readAll() {
         var list = notificationRepo.findTop50ByRecipientIsNullOrderByCreatedAtDesc();
         list.forEach(n -> n.setReadFlag(true));

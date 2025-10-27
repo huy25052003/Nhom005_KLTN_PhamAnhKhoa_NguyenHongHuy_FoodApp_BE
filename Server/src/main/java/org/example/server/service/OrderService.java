@@ -132,7 +132,7 @@ public class OrderService {
 
     @Transactional
     public Order updateStatus(Long id, String nextRaw) {
-        Order o = orderRepo.findById(id).orElseThrow(NoSuchElementException::new);
+        Order o = orderRepo.findByIdWithDetails(id).orElseThrow(NoSuchElementException::new);
         String cur  = normalize(o.getStatus());
         String next = normalize(nextRaw);
 
@@ -170,7 +170,7 @@ public class OrderService {
         order.setStatus("CANCELED");
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
-        
+
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             if (p == null) {
