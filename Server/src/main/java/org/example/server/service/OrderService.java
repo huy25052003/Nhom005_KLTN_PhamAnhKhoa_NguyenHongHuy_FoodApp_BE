@@ -127,8 +127,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Order> orderPage = orderRepo.findAllWithUserDetails(pageable);
-        return orderPage;
+        return orderRepo.findAllWithUserDetails(pageable);
     }
 
     @Transactional
@@ -146,7 +145,7 @@ public class OrderService {
 
         o.setStatus(next);
         o.setUpdatedAt(LocalDateTime.now());
-        return orderRepo.save(o);
+        return o;
     }
 
     private String normalize(String s) {

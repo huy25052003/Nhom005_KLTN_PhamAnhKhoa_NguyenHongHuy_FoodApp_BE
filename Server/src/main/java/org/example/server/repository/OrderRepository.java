@@ -20,7 +20,7 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
             "WHERE o.user = :user " +
             "ORDER BY o.createdAt DESC")
     List<Order> findByUserWithItems(@Param("user") User user);
-    @Query(value = "SELECT o FROM Order o " +
+    @Query(value = "SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.user u " +
             "LEFT JOIN FETCH o.shipping s ",
             countQuery = "SELECT COUNT(o) FROM Order o") // Cần countQuery riêng khi dùng FETCH với Pageable
