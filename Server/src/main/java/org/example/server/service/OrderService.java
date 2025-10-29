@@ -128,7 +128,13 @@ public class OrderService {
     public Page<Order> getAllOrders(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Order> orderPage = orderRepo.findAllWithUserDetails(pageable);
-        orderPage.getContent().forEach(order -> order.getItems().size());
+        orderPage.getContent().forEach(order -> {
+            order.getItems().forEach(item -> {
+                if (item.getProduct() != null) {
+                    item.getProduct().getName();
+                }
+            });
+        });
 
         return orderPage;
     }
