@@ -23,6 +23,7 @@ import vn.payos.type.PaymentData;
 import vn.payos.type.Webhook;
 import vn.payos.type.WebhookData;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -61,7 +62,7 @@ public class PaymentService {
     }
     @Transactional
     public String createPaymentLink(Long orderId) throws Exception {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại"));
 
         if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
@@ -134,7 +135,7 @@ public class PaymentService {
                 return;
             }
             Payment payment = paymentRepository.findByPayosOrderId(String.valueOf(orderCode));
-            Order order = (payment != null) ? payment.getOrder() : orderRepository.findById(orderCode).orElse(null);
+            Order order = (payment != null) ? payment.getOrder() : orderRepository.findByIdWithDetails(orderCode).orElse(null);
 
             if (order == null) {
                 log.warn("Không tìm thấy Order cho orderCode={}", orderCode);
@@ -150,6 +151,7 @@ public class PaymentService {
             if ("SUCCESS".equalsIgnoreCase(payStatus)) {
                 if ("PENDING".equalsIgnoreCase(order.getStatus())) {
                     order.setStatus("CONFIRMED");
+                    order.setUpdatedAt(LocalDateTime.now());
                     orderRepository.save(order);
                     clearUserCart(order.getUser());
                 } else {
@@ -159,6 +161,7 @@ public class PaymentService {
             } else if ("FAILED".equalsIgnoreCase(payStatus) || "CANCELLED".equalsIgnoreCase(payStatus)) {
                 if ("PENDING".equalsIgnoreCase(order.getStatus())) {
                     order.setStatus("CANCELED");
+                    order.setUpdatedAt(LocalDateTime.now());
                     orderRepository.save(order);
                     for (OrderItem it : order.getItems()) {
                         Product p = it.getProduct();

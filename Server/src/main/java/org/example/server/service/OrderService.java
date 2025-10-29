@@ -127,7 +127,8 @@ public class OrderService {
     @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return orderRepo.findAllWithUserDetails(pageable);
+        Page<Order> orderPage = orderRepo.findAllWithUserDetails(pageable);
+        return orderPage;
     }
 
     @Transactional

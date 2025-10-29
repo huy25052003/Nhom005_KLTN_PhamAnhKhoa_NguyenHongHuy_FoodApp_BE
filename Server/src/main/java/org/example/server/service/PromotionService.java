@@ -22,17 +22,26 @@ public class PromotionService {
     public static record ApplyResult(BigDecimal discount, Promotion promotion, String message) {}
 
     /** Tính discount cho 1 danh sách OrderItem thô (productId + quantity + price sẽ set lại theo DB) */
-    @Transactional
+    @Transactional(readOnly = true)
     public ApplyResult preview(String code, List<OrderItem> items) {
         if (code == null || code.trim().isEmpty()) {
             return new ApplyResult(BigDecimal.ZERO, null, "Không có mã khuyến mãi.");
         }
-        Promotion p = promoRepo.findByCodeIgnoreCase(code.trim())
+        Promotion p = promoRepo.findByCodeWithDetails(code.trim())
                 .orElse(null);
         if (p == null) return new ApplyResult(BigDecimal.ZERO, null, "Mã không tồn tại.");
 
         String invalid = validate(p);
         if (invalid != null) return new ApplyResult(BigDecimal.ZERO, null, invalid);
+
+        Set<Long> productIds = items.stream()
+                .filter(it -> it.getProduct() != null && it.getProduct().getId() != null)
+                .map(it -> it.getProduct().getId())
+                .collect(Collectors.toSet());
+
+        if (productIds.isEmpty()) {
+            return new ApplyResult(BigDecimal.ZERO, null, "Danh sách sản phẩm trống.");
+        }
 
         // Lấy lại products & giá hiện tại
         Map<Long, Product> pmap = productRepo.findAllById(
@@ -98,9 +107,12 @@ public class PromotionService {
 
     @Transactional
     public void increaseUsage(Promotion p) {
-        if (p==null) return;
-        if (p.getUsedCount()==null) p.setUsedCount(0);
-        p.setUsedCount(p.getUsedCount()+1);
-        promoRepo.save(p);
+        if (p==null || p.getId() == null) return;
+        Promotion managedP = promoRepo.findById(p.getId()).orElse(null);
+        if (managedP == null) return;
+
+        if (managedP.getUsedCount()==null) managedP.setUsedCount(0);
+        managedP.setUsedCount(managedP.getUsedCount()+1);
+        promoRepo.save(managedP);;
     }
 }
