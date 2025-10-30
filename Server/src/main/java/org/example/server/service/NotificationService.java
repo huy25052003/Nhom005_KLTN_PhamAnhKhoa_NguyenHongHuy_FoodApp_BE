@@ -52,4 +52,8 @@ public class NotificationService {
         simp.convertAndSend("/topic/admin/orders", saved);
         return saved;
     }
+    @Transactional(readOnly = true)
+    public void notifyKitchenOfNewOrder(Order order) {
+        simp.convertAndSend("/topic/kitchen/new-order", order);
+    }
 }

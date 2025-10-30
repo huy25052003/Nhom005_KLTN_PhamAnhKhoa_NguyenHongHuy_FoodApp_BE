@@ -35,7 +35,6 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Cho phép các request OPTIONS cho CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Các endpoint công khai (ưu tiên cao nhất)
@@ -56,11 +55,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
                         .requestMatchers("/api/files/upload").hasRole("ADMIN")
                         .requestMatchers("/api/promotions/preview").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
+                        // .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN") // Sửa ở dưới
+                        // .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN") // Sửa ở dưới
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/topic/**", "/queue/**").permitAll()
+
+                        // API Bếp (Kitchen)
+                        .requestMatchers("/api/kitchen/**").hasAnyRole("ADMIN", "KITCHEN")
+
+                        // API Đơn hàng
+                        .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyRole("ADMIN", "KITCHEN")
+                        .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAnyRole("ADMIN", "KITCHEN")
+                        // ===== THAY ĐỔI CHO KITCHEN (KẾT THÚC) =====
 
                         // Các endpoint yêu cầu xác thực (authenticated)
                         .requestMatchers("/api/users/me/**").authenticated()
@@ -68,11 +75,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/*/cancel").authenticated()
                         .requestMatchers("/api/shipping/me").authenticated()
                         .requestMatchers("/api/favorites/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated() // Logic service sẽ check (admin, kitchen, owner)
                         .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/reviews/*").authenticated()
-
-
 
                         // Tất cả các request khác yêu cầu xác thực
                         .anyRequest().permitAll()

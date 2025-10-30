@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable; // Thêm import
 import org.springframework.data.domain.Sort; // Thêm import
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,8 +119,12 @@ public class OrderService {
 
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (!isAdmin && !order.getUser().getUsername().equals(auth.getName())) {
-            throw new RuntimeException("Forbidden");
+        boolean isKitchen = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_KITCHEN"));
+        boolean isOwner = order.getUser().getUsername().equals(auth.getName());
+
+        if (!isAdmin && !isKitchen && !isOwner) {
+            throw new AccessDeniedException("Forbidden");
         }
         return order;
     }
@@ -154,7 +159,10 @@ public class OrderService {
 
         o.setStatus(next);
         o.setUpdatedAt(LocalDateTime.now());
-        return o;
+        if ("PENDING".equals(cur) && "CONFIRMED".equals(next)) {
+            notificationService.notifyKitchenOfNewOrder(o);
+        }
+        return orderRepo.save(o);
     }
 
     private String normalize(String s) {
@@ -190,5 +198,10 @@ public class OrderService {
             productRepo.save(p);
         }
         return saved;
+    }
+    @Transactional(readOnly = true)
+    public List<Order> getKitchenOrders() {
+        List<String> statuses = List.of("CONFIRMED", "PREPARING");
+        return orderRepo.findByStatusInWithDetails(statuses);
     }
 }

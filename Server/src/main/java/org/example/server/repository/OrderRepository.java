@@ -26,7 +26,6 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
             countQuery = "SELECT COUNT(o) FROM Order o") // Cần countQuery riêng khi dùng FETCH với Pageable
     Page<Order> findAllWithUserDetails(Pageable pageable);
 
-    // Thêm phương thức này cho getOne để fetch tất cả
     @Query("SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.items i " +
             "LEFT JOIN FETCH i.product p " +
@@ -35,4 +34,12 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
             "LEFT JOIN FETCH o.user u " +
             "WHERE o.id = :id")
     Optional<Order> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.user u " +
+            "LEFT JOIN FETCH o.items i " +
+            "LEFT JOIN FETCH i.product p " +
+            "WHERE o.status IN :statuses " +
+            "ORDER BY o.createdAt ASC")
+    List<Order> findByStatusInWithDetails(@Param("statuses") List<String> statuses);
 }
