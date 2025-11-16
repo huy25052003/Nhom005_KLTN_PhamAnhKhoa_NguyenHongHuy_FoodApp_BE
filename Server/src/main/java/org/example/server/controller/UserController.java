@@ -45,4 +45,6 @@ public class UserController {
         UserService.deleteUser(id, currentAdminUsername);
         return ResponseEntity.noContent().build();
     }
+
+
 }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Xác nhận đơn hàng</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background-color: #4caf50; color: white; padding: 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { padding: 20px; color: #333; }
+        .info-box { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #4caf50; }
+        .info-row { margin-bottom: 8px; }
+        .table-wrapper { margin-top: 20px; border: 1px solid #eee; border-radius: 5px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #eee; padding: 10px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase; }
+        td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        .price { font-weight: bold; color: #333; }
+        .total { text-align: right; font-size: 18px; margin-top: 20px; padding-top: 10px; border-top: 2px solid #eee; }
+        .total span { color: #d32f2f; font-weight: bold; font-size: 22px; }
+        .footer { text-align: center; font-size: 12px; color: #999; padding: 20px; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>FoodApp</h1>
+        <p>Cảm ơn bạn đã đặt hàng!</p>
+    </div>
+
+    <div class="content">
+        <p>Xin chào <b th:text="${order.user.username}">Khách hàng</b>,</p>
+        <p>Đơn hàng của bạn <b th:text="'#' + ${order.id}">#123</b> đã được tiếp nhận thành công.</p>
+
+        <div class="info-box">
+            <div class="info-row"><strong>Ngày đặt:</strong> <span th:text="${#temporals.format(order.createdAt, 'dd-MM-yyyy HH:mm')}">20/11/2024</span></div>
+            <div class="info-row" th:if="${order.shipping != null}">
+                <strong>Người nhận:</strong> <span th:text="${order.shipping.phone}">0909xxx</span>
+            </div>
+            <div class="info-row" th:if="${order.shipping != null}">
+                <strong>Địa chỉ:</strong> <span th:text="${order.shipping.addressLine} + ', ' + ${order.shipping.city}">123 Đường ABC</span>
+            </div>
+            <div class="info-row"><strong>Thanh toán:</strong> <span th:text="${order.paymentMethod}">COD</span></div>
+        </div>
+
+        <h3>Chi tiết đơn hàng</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th width="55%">Món ăn</th>
+                    <th width="15%" style="text-align: center;">SL</th>
+                    <th width="30%" style="text-align: right;">Thành tiền</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${order.items}">
+                    <td>
+                        <span style="font-weight: bold; display: block; color: #4caf50;" th:text="${item.product.name}">Tên món</span>
+                    </td>
+                    <td style="text-align: center;" th:text="'x' + ${item.quantity}">x1</td>
+                    <td style="text-align: right;" class="price"
+                        th:text="${#numbers.formatDecimal(item.price * item.quantity, 0, 'POINT', 0, 'POINT')} + ' đ'">
+                        50.000 đ
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="total">
+            Tổng cộng: <span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'POINT')} + ' đ'">100.000 đ</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+        <p>&copy; 2024 FoodApp Service.</p>
+    </div>
+</div>
+</body>
+</html>

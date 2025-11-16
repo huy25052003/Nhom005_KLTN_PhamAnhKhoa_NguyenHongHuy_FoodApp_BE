@@ -9,7 +9,11 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table (name = "users" , uniqueConstraints = @UniqueConstraint(columnNames = "username"))
+@Table (name = "users" , uniqueConstraints = {
+        @UniqueConstraint(columnNames = "username"),
+        @UniqueConstraint(columnNames = "email")
+})
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,6 +29,14 @@ public class User {
 
     @Column(nullable=false, length = 200)
     private String password; // đã mã hoá BCrypt
+
+    @Column(length = 150, unique = true)
+    private String email;
+
+    private Boolean isEmailVerified = false;
+
+    @JsonIgnore
+    private String emailVerificationCode;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))

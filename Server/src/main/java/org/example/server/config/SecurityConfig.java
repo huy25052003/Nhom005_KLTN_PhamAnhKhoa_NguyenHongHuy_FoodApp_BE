@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").permitAll() // Đảm bảo permitAll
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/avg").permitAll()
                         .requestMatchers("/api/favorites/**").permitAll()
+                        .requestMatchers("/api/account/**").authenticated()
 
 
                         // Các endpoint yêu cầu quyền ADMIN

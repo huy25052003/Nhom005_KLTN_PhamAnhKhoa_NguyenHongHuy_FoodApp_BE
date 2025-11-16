@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable; // Thêm import
 import org.springframework.data.domain.Sort; // Thêm import
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class OrderService {
     private final ShippingInfoService shippingInfoService;
     private final PromotionService promotionService;
     private final NotificationService notificationService;
+    private final EmailService emailService;
 
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
@@ -98,8 +100,11 @@ public class OrderService {
             productRepo.save(p);
         }
         if (applied != null) promotionService.increaseUsage(applied);
-        notificationService.newOrderNotify(saved);
 
+        notificationService.newOrderNotify(saved);
+        if (user.getEmail() != null && Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            emailService.sendOrderConfirmation(user.getEmail(), saved);
+        }
         cartService.clear(auth);
 
         return saved;
@@ -204,4 +209,5 @@ public class OrderService {
         List<String> statuses = List.of("CONFIRMED", "PREPARING");
         return orderRepo.findByStatusInWithDetails(statuses);
     }
+
 }

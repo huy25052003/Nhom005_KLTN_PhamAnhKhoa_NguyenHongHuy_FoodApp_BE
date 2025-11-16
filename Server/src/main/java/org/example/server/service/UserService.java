@@ -5,6 +5,7 @@ import org.example.server.entity.User;
 import org.example.server.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.Set;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Transactional(readOnly = true)
     public Page<User> listUsers(Pageable pageable) {
@@ -64,4 +66,30 @@ public class UserService {
 
         userRepository.deleteById(id);
     }
+
+    public User requestEmailVerification(Long userId, String newEmail) {
+        User user = getUserById(userId);
+
+        user.setEmail(newEmail);
+        user.setIsEmailVerified(false);
+
+        String code = String.valueOf((int) ((Math.random() * 899999) + 100000));
+        user.setEmailVerificationCode(code);
+
+        User savedUser = userRepository.save(user);
+        emailService.sendVerificationCode(newEmail, code);
+
+        return savedUser;
+    }
+
+    public User verifyEmail(Long userId, String code) {
+        User user = getUserById(userId);
+        if (code.equals(user.getEmailVerificationCode())) {
+            user.setIsEmailVerified(true);
+            user.setEmailVerificationCode(null);
+            return userRepository.save(user);
+        }
+        throw new RuntimeException("Mã xác thực không đúng");
+    }
+
 }
