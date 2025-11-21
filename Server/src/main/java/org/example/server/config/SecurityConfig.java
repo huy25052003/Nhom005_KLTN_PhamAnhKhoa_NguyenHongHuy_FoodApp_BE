@@ -51,6 +51,8 @@ public class SecurityConfig {
 
 
                         // Các endpoint yêu cầu quyền ADMIN
+                        .requestMatchers("/api/conversations/**").hasAnyRole("USER", "ADMIN", "SUPPORT")
+                        .requestMatchers("/api/messages/**").hasAnyRole("USER", "ADMIN", "SUPPORT")
                         .requestMatchers("/api/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/categories/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")

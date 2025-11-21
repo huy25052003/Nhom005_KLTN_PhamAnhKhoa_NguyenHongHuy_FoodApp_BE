@@ -2,6 +2,7 @@ package org.example.server.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.UserProfile;
+import org.example.server.repository.UserRepository;
 import org.example.server.service.ProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,6 +15,21 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserProfileController {
     private final ProfileService profileService;
+    private final UserRepository userRepo;
+
+    @GetMapping("")
+    public ResponseEntity<?> getMe(Authentication auth) {
+        return userRepo.findByUsername(auth.getName())
+                .map(u -> Map.of(
+                        "id", u.getId(),
+                        "username", u.getUsername(),
+                        "email", u.getEmail() != null ? u.getEmail() : "",
+                        "isEmailVerified", Boolean.TRUE.equals(u.getIsEmailVerified()),
+                        "roles", u.getRoles()
+                ))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @GetMapping("/profile")
     public ResponseEntity<UserProfile> getMyProfile(Authentication auth) {
@@ -24,5 +40,4 @@ public class UserProfileController {
     public ResponseEntity<UserProfile> updateMyProfile(Authentication auth, @RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(profileService.upsertMyProfile(auth, body));
     }
-
 }

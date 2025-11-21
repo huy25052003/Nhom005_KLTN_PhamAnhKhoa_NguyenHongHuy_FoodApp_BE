@@ -9,6 +9,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,48 +27,36 @@ public class StompAuthInterceptor implements ChannelInterceptor {
     @Autowired
     private UserDetailsService userDetailsService;
 
-    // LOG XÁC NHẬN CLASS ĐƯỢC LOAD
-    static {
-        System.out.println("=== STOMP AUTH INTERCEPTOR LOADED - NEW VERSION (ALLOW CONNECT) ===");
-    }
-
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        StompCommand command = accessor.getCommand();
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        if (StompCommand.CONNECT.equals(command)) {
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
-            log.debug("STOMP CONNECT - Authorization header: {}", authHeader);
 
-            // CHO PHÉP KẾT NỐI DÙ KHÔNG CÓ TOKEN (ĐỂ TEST)
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("STOMP CONNECT: No token provided, allowing anonymous connection for testing");
-                // Vẫn cho phép kết nối
-            } else {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7).trim();
                 try {
                     String username = jwtService.extractUsername(token);
                     if (username != null && jwtService.isValid(token, username)) {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+                        // Dòng này cực kỳ quan trọng: Gắn user vào session WebSocket
+                        accessor.setUser(authentication);
+
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        log.info("STOMP CONNECT success: user={}", username);
-                    } else {
-                        log.warn("STOMP CONNECT: Invalid token, continuing without auth");
+                        log.info("✅ Socket Authenticated User: {}", username);
                     }
                 } catch (Exception e) {
-                    log.error("STOMP CONNECT: JWT error: {}", e.getMessage());
-                    // Không throw, vẫn cho phép kết nối
+                    log.error("❌ Socket Auth Error: {}", e.getMessage());
                 }
+            } else {
+                log.warn("⚠️ Socket Connect: No Token");
             }
-
-            // QUAN TRỌNG: TRẢ VỀ message ĐỂ CHO PHÉP KẾT NỐI
-            return message;
         }
-
-        // Các command khác (SEND, SUBSCRIBE): vẫn giữ nguyên xử lý JWT nếu cần
         return message;
     }
 }
