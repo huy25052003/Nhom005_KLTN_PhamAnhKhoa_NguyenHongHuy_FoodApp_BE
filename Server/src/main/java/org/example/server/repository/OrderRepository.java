@@ -1,6 +1,7 @@
 package org.example.server.repository;
 
 import org.example.server.entity.Order;
+import org.example.server.entity.Product;
 import org.example.server.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,7 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order,Long> {
@@ -42,4 +45,29 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
             "WHERE o.status IN :statuses " +
             "ORDER BY o.createdAt ASC")
     List<Order> findByStatusInWithDetails(@Param("statuses") List<String> statuses);
+
+    @Query("""
+        SELECT COUNT(o) > 0 
+        FROM Order o 
+        JOIN o.items oi 
+        WHERE o.user = :user 
+          AND oi.product = :product 
+          AND o.status IN ('DONE')
+    """)
+    boolean existsFinishedOrderWithProduct(@Param("user") User user, @Param("product") Product product);
+
+    List<Order> findByStatusAndCreatedAtBefore(String status, LocalDateTime time);
+
+    @Query("""
+        SELECT new map(
+            oi.product.id as productId, 
+            oi.product.name as productName, 
+            SUM(oi.quantity) as totalQuantity
+        )
+        FROM OrderItem oi
+        JOIN oi.order o
+        WHERE o.status IN ('CONFIRMED', 'PREPARING')
+        GROUP BY oi.product.id, oi.product.name
+    """)
+    List<Map<String, Object>> getKitchenAggregatedItems();
 }
