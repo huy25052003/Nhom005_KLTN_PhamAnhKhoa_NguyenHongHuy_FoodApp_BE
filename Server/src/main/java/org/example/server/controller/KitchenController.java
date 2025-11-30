@@ -5,9 +5,8 @@ import org.example.server.entity.Order;
 import org.example.server.repository.OrderRepository;
 import org.example.server.service.OrderService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -28,4 +27,9 @@ public class KitchenController {
     public ResponseEntity<List<Map<String, Object>>> getAggregatedItems() {
         return ResponseEntity.ok(orderRepository.getKitchenAggregatedItems());
     }
+    @PutMapping("/items/{itemId}/status")
+    public ResponseEntity<?> updateItemStatus(@PathVariable Long itemId, @RequestParam String status, Authentication auth) {
+        return ResponseEntity.ok(orderService.updateItemStatus(itemId, status, auth));
+    }
 }
+     

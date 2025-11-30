@@ -19,6 +19,14 @@ public class OrderItem {
 
     private BigDecimal price;
 
+    @Builder.Default
+    private String status = "PENDING";
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "chef_id")
+    @JsonIgnoreProperties({"password", "roles", "orders", "cart", "tokens"})
+    private User chef;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     @JsonBackReference("order-item")
@@ -28,4 +36,9 @@ public class OrderItem {
     @JoinColumn(name = "product_id")
     @JsonIgnoreProperties({"items","category"})
     private Product product;
+
+    @PrePersist
+    void prePersist() {
+        if (status == null) status = "PENDING";
+    }
 }

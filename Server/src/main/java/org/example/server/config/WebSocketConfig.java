@@ -19,7 +19,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // Chấp nhận mọi origin để test cho dễ
+                .setAllowedOrigins(
+                        "http://localhost:5173/",                   // React chạy local
+                        "https://unscaled-obtect-irvin.ngrok-free.dev/"// Link Ngrok của Backend (nếu bạn gọi trực tiếp)
+                )
                 .withSockJS();
     }
 

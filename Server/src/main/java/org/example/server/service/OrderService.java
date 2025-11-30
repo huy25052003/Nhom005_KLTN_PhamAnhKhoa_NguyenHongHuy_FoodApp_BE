@@ -2,6 +2,7 @@ package org.example.server.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.*;
+import org.example.server.repository.OrderItemRepository;
 import org.example.server.repository.OrderRepository;
 import org.example.server.repository.ProductRepository;
 import org.example.server.repository.UserRepository;
@@ -15,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class OrderService {
     private final PromotionService promotionService;
     private final NotificationService notificationService;
     private final EmailService emailService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
@@ -42,6 +45,7 @@ public class OrderService {
             "CANCELED",   Set.of(),
             "CANCELLED",  Set.of()
     );
+    private final OrderItemRepository orderItemRepository;
 
     @Transactional
     public Order placeOrder(String username, List<OrderItem> items, String promoCode, Map<String, Object> shippingData, String paymentMethod) {
@@ -210,4 +214,51 @@ public class OrderService {
         return orderRepo.findByStatusInWithDetails(statuses);
     }
 
+    @Transactional
+    public OrderItem updateItemStatus(Long itemId, String status, Authentication auth) {
+        OrderItem item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Món không tồn tại"));
+
+        User currentChef = userRepo.findByUsername(auth.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 1. Logic Nhận món (COOKING)
+        if ("COOKING".equals(status)) {
+            if (item.getChef() != null && !item.getChef().getId().equals(currentChef.getId())) {
+                throw new RuntimeException("Món này đã có người nhận rồi!");
+            }
+            item.setChef(currentChef);
+        }
+
+        // 2. Logic Hủy nhận (trả về PENDING)
+        if ("PENDING".equals(status)) {
+            item.setChef(null);
+        }
+
+        // 3. Cập nhật trạng thái món
+        item.setStatus(status);
+        OrderItem savedItem = orderItemRepository.save(item);
+
+        // 4. Tự động cập nhật trạng thái Đơn hàng cha (Order)
+        Order order = item.getOrder();
+        List<OrderItem> allItems = order.getItems();
+
+        boolean allDone = allItems.stream().allMatch(i -> "DONE".equals(i.getStatus()));
+        boolean anyCooking = allItems.stream().anyMatch(i -> "COOKING".equals(i.getStatus()) || "DONE".equals(i.getStatus()));
+
+        if (allDone) {
+            order.setStatus("DELIVERING"); // Xong hết -> Giao
+        } else if (anyCooking) {
+            order.setStatus("PREPARING"); // Đang làm dở
+        } else {
+            order.setStatus("CONFIRMED"); // Chưa làm gì
+        }
+        orderRepo.save(order);
+
+        // 5. BẮN SOCKET ĐỂ CÁC BẾP KHÁC TỰ CẬP NHẬT (REAL-TIME)
+        // Gửi tín hiệu "có thay đổi" để frontend reload
+        messagingTemplate.convertAndSend("/topic/kitchen/update", "UPDATE");
+
+        return savedItem;
+    }
 }
