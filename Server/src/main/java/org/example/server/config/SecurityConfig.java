@@ -1,6 +1,7 @@
 package org.example.server.config;
 
 import org.example.server.security.JwtAuthFilter;
+import org.example.server.security.RateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,9 +24,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RateLimitFilter  rateLimitFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,  RateLimitFilter rateLimitFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -85,6 +88,7 @@ public class SecurityConfig {
                         // Tất cả các request khác yêu cầu xác thực
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
