@@ -6,6 +6,7 @@ import org.example.server.repository.OrderItemRepository;
 import org.example.server.repository.OrderRepository;
 import org.example.server.repository.ProductRepository;
 import org.example.server.repository.UserRepository;
+import org.example.server.service.PromotionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable; // Thêm import
