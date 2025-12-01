@@ -5,6 +5,8 @@ import org.example.server.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -22,5 +24,12 @@ public class AuthController {
     @PostMapping("/login")
     public JwtResponse login(@RequestBody LoginRequest req) {
         return auth.login(req);
+    }
+
+    @PostMapping("/firebase")
+    public ResponseEntity<JwtResponse> loginFirebase(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token == null || token.isBlank()) throw new IllegalArgumentException("Token is required");
+        return ResponseEntity.ok(auth.loginWithFirebase(token));
     }
 }
