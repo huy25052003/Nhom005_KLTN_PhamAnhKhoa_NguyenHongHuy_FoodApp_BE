@@ -51,10 +51,19 @@ public class CartService {
         var cart = getOrCreate(user);
         var product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
+        if (product.getStock() < quantity) {
+            throw new RuntimeException( "Sản phẩm không đủ hàng (Còn: " + product.getStock() + ")" );
+        }
 
         var exist = cart.getItems().stream()
                 .filter(i -> i.getProduct() != null && i.getProduct().getId().equals(product.getId()))
                 .findFirst().orElse(null);
+
+        int currentInCart = (exist != null) ? exist.getQuantity() : 0;
+        int totalWanted = currentInCart + quantity;
+        if (totalWanted > product.getStock()) {
+            throw new RuntimeException("Kho chỉ còn " + product.getStock() + " món. Bạn đã có " + currentInCart + " trong giỏ.");
+        }
 
         if (exist != null) {
             exist.setQuantity(exist.getQuantity() + quantity);
