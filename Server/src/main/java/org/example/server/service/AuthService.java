@@ -49,7 +49,13 @@ public class AuthService {
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.username(), req.password())
         );
-        User user = userRepo.findByUsername(req.username())
+        String login = req.username();
+        String phoneFormatted = login;
+        if (login != null && login.matches("^0\\d{9}$")) {
+            phoneFormatted = "+84" + login.substring(1);
+        }
+
+        User user = userRepo.findByLoginIdentifier(login, phoneFormatted)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         String jwt = jwtService.generate(user.getUsername(), user.getRoles());

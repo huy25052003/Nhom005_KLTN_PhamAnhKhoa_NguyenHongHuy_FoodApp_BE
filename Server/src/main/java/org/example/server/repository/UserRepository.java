@@ -17,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByPhone(String phone);
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r LIKE %:role%")
     List<User> findByRolesContaining(@Param("role") String role);
+    @Query("SELECT u FROM User u WHERE u.username = :login OR u.email = :login OR u.phone = :login OR u.phone = :phoneFormatted")
+    Optional<User> findByLoginIdentifier(@Param("login") String login, @Param("phoneFormatted") String phoneFormatted);
 }
