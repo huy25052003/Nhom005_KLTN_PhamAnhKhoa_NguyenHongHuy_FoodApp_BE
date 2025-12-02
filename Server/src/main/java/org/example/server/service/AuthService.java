@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -22,15 +23,17 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authManager;
     private final JwtService jwtService;
+    private final EmailService emailService;
 
     public AuthService(UserRepository userRepo,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authManager,
-                       JwtService jwtService) {
+                       JwtService jwtService, EmailService emailService) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authManager = authManager;
         this.jwtService = jwtService;
+        this.emailService = emailService;
     }
 
     public void register(RegisterRequest req) {
@@ -94,6 +97,48 @@ public class AuthService {
 
         } catch (Exception e) {
             throw new RuntimeException("Lỗi xác thực Google: " + e.getMessage());
+        }
+    }
+
+    // 1. Yêu cầu gửi mã qua Email
+    public void requestPasswordReset(String email) {
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
+
+        // Tạo mã 6 số
+        String code = String.valueOf(100000 + new Random().nextInt(900000));
+        user.setPasswordResetCode(code);
+        userRepo.save(user);
+         emailService.sendPasswordResetCode(email, code);
+    }
+
+    // 2. Đặt lại mật khẩu bằng OTP Email
+    public void resetPasswordWithEmail(String email, String code, String newPassword) {
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        if (user.getPasswordResetCode() == null || !user.getPasswordResetCode().equals(code)) {
+            throw new IllegalArgumentException("Mã xác thực không đúng hoặc đã hết hạn");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetCode(null); // Xóa mã sau khi dùng
+        userRepo.save(user);
+    }
+
+    // 3. Đặt lại mật khẩu bằng Firebase Phone Token
+    public void resetPasswordWithPhone(String firebaseToken, String newPassword) {
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseToken);
+            String phone = (String) decodedToken.getClaims().get("phone_number");
+
+            User user = userRepo.findByPhone(phone)
+                    .orElseThrow(() -> new RuntimeException("Số điện thoại này chưa đăng ký tài khoản nào"));
+
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userRepo.save(user);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xác thực: " + e.getMessage());
         }
     }
 }

@@ -42,6 +42,9 @@ public class User {
     private Boolean isEmailVerified = false;
 
     @JsonIgnore
+    private String passwordResetCode;
+
+    @JsonIgnore
     private String emailVerificationCode;
 
     @ElementCollection(fetch = FetchType.EAGER)

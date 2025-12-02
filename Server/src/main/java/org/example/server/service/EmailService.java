@@ -62,4 +62,25 @@ public class EmailService {
             e.printStackTrace();
         }
     }
+
+    // ... các hàm cũ
+
+    @Async
+    public void sendPasswordResetCode(String toEmail, String code) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(toEmail);
+            helper.setSubject("Đặt lại mật khẩu - FoodApp");
+
+            String html = "<p>Bạn đã yêu cầu đặt lại mật khẩu.</p>" +
+                    "<h3>Mã xác nhận của bạn là: <b style='color:red'>" + code + "</b></h3>" +
+                    "<p>Vui lòng không chia sẻ mã này cho ai.</p>";
+
+            helper.setText(html, true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
 }
