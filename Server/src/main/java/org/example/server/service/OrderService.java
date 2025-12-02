@@ -6,18 +6,16 @@ import org.example.server.repository.OrderItemRepository;
 import org.example.server.repository.OrderRepository;
 import org.example.server.repository.ProductRepository;
 import org.example.server.repository.UserRepository;
-import org.example.server.service.PromotionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable; // Thêm import
-import org.springframework.data.domain.Sort; // Thêm import
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,18 +34,19 @@ public class OrderService {
     private final NotificationService notificationService;
     private final EmailService emailService;
     private final SimpMessagingTemplate messagingTemplate;
-
-    private static final Map<String, Set<String>> ALLOWED = Map.of(
-            "PENDING",    Set.of("CONFIRMED", "CANCELED", "CANCELLED"),
-            "CONFIRMED",  Set.of("PREPARING", "CANCELED", "CANCELLED"),
-            "PREPARING",  Set.of("DELIVERING", "DONE", "CANCELED", "CANCELLED"),
-            "DELIVERING", Set.of("DONE", "CANCELED", "CANCELLED"),
-            "DONE",       Set.of(),
-            "CANCELED",   Set.of(),
-            "CANCELLED",  Set.of()
-    );
     private final OrderItemRepository orderItemRepository;
 
+    // SỬA: Dùng CANCELLED (2 chữ L)
+    private static final Map<String, Set<String>> ALLOWED = Map.of(
+            "PENDING",    Set.of("CONFIRMED", "CANCELLED"),
+            "CONFIRMED",  Set.of("PREPARING", "CANCELLED"),
+            "PREPARING",  Set.of("DELIVERING", "DONE", "CANCELLED"),
+            "DELIVERING", Set.of("DONE", "CANCELLED"),
+            "DONE",       Set.of(),
+            "CANCELLED",  Set.of()
+    );
+
+    // ... (giữ nguyên hàm placeOrder, getUserOrders, getOne, getAllOrders)
     @Transactional
     public Order placeOrder(String username, List<OrderItem> items, String promoCode, Map<String, Object> shippingData, String paymentMethod) {
         User user = userRepo.findByUsername(username)
@@ -142,16 +141,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public Page<Order> getAllOrders(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Order> orderPage = orderRepo.findAllWithUserDetails(pageable);
-        orderPage.getContent().forEach(order -> {
-            order.getItems().forEach(item -> {
-                if (item.getProduct() != null) {
-                    item.getProduct().getName();
-                }
-            });
-        });
-
-        return orderPage;
+        return orderRepo.findAllWithUserDetails(pageable);
     }
 
     @Transactional
@@ -175,10 +165,11 @@ public class OrderService {
         return orderRepo.save(o);
     }
 
+    // SỬA: Ép về CANCELLED
     private String normalize(String s) {
         if (s == null) return "";
         String up = s.trim().toUpperCase(Locale.ROOT);
-        if ("CANCELLED".equals(up)) return "CANCELED";
+        if ("CANCELED".equals(up)) return "CANCELLED"; // Nếu lỡ gửi 1 L thì đổi thành 2 L
         return up;
     }
 
@@ -194,21 +185,22 @@ public class OrderService {
         if (!"PENDING".equals(cur)) {
             throw new RuntimeException("Only PENDING order can be cancelled");
         }
-        order.setStatus("CANCELED");
+
+        // SỬA: Set thành CANCELLED
+        order.setStatus("CANCELLED");
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
 
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
-            if (p == null) {
-                System.err.println("Warning: Product not found for OrderItem ID: " + i.getId() + " during cancellation of Order ID: " + orderId);
-                continue;
+            if (p != null) {
+                p.setStock(p.getStock() + i.getQuantity());
+                productRepo.save(p);
             }
-            p.setStock(p.getStock() + i.getQuantity());
-            productRepo.save(p);
         }
         return saved;
     }
+
     @Transactional(readOnly = true)
     public List<Order> getKitchenOrders() {
         List<String> statuses = List.of("CONFIRMED", "PREPARING");
@@ -223,7 +215,6 @@ public class OrderService {
         User currentChef = userRepo.findByUsername(auth.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 1. Logic Nhận món (COOKING)
         if ("COOKING".equals(status)) {
             if (item.getChef() != null && !item.getChef().getId().equals(currentChef.getId())) {
                 throw new RuntimeException("Món này đã có người nhận rồi!");
@@ -231,16 +222,13 @@ public class OrderService {
             item.setChef(currentChef);
         }
 
-        // 2. Logic Hủy nhận (trả về PENDING)
         if ("PENDING".equals(status)) {
             item.setChef(null);
         }
 
-        // 3. Cập nhật trạng thái món
         item.setStatus(status);
         OrderItem savedItem = orderItemRepository.save(item);
 
-        // 4. Tự động cập nhật trạng thái Đơn hàng cha (Order)
         Order order = item.getOrder();
         List<OrderItem> allItems = order.getItems();
 
@@ -248,16 +236,14 @@ public class OrderService {
         boolean anyCooking = allItems.stream().anyMatch(i -> "COOKING".equals(i.getStatus()) || "DONE".equals(i.getStatus()));
 
         if (allDone) {
-            order.setStatus("DELIVERING"); // Xong hết -> Giao
+            order.setStatus("DELIVERING");
         } else if (anyCooking) {
-            order.setStatus("PREPARING"); // Đang làm dở
+            order.setStatus("PREPARING");
         } else {
-            order.setStatus("CONFIRMED"); // Chưa làm gì
+            order.setStatus("CONFIRMED");
         }
         orderRepo.save(order);
 
-        // 5. BẮN SOCKET ĐỂ CÁC BẾP KHÁC TỰ CẬP NHẬT (REAL-TIME)
-        // Gửi tín hiệu "có thay đổi" để frontend reload
         messagingTemplate.convertAndSend("/topic/kitchen/update", "UPDATE");
 
         return savedItem;

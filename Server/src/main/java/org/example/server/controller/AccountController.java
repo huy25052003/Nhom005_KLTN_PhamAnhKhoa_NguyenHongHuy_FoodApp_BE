@@ -51,4 +51,20 @@ public class AccountController {
 
         return ResponseEntity.ok(userService.verifyEmail(user.getId(), code));
     }
+    @PostMapping("/phone/verify")
+    public ResponseEntity<User> verifyPhone(
+            Authentication authentication,
+            @RequestBody Map<String, String> body) {
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String token = body.get("token");
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Token is required");
+        }
+
+        return ResponseEntity.ok(userService.verifyPhoneWithFirebase(user.getId(), token));
+    }
 }

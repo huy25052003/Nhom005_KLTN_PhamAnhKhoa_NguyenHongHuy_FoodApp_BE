@@ -11,7 +11,8 @@ import java.util.Set;
 @Entity
 @Table (name = "users" , uniqueConstraints = {
         @UniqueConstraint(columnNames = "username"),
-        @UniqueConstraint(columnNames = "email")
+        @UniqueConstraint(columnNames = "email"),
+        @UniqueConstraint(columnNames = "phone")
 })
 
 @Getter
@@ -32,6 +33,11 @@ public class User {
 
     @Column(length = 150, unique = true)
     private String email;
+
+    @Column(length = 20)
+    private String phone;
+
+    private Boolean isPhoneVerified = false;
 
     private Boolean isEmailVerified = false;
 

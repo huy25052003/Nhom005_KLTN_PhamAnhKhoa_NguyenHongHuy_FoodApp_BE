@@ -25,6 +25,10 @@ public class UserProfileController {
                         "username", u.getUsername(),
                         "email", u.getEmail() != null ? u.getEmail() : "",
                         "isEmailVerified", Boolean.TRUE.equals(u.getIsEmailVerified()),
+                        // --- THÊM 2 DÒNG NÀY ---
+                        "phone", u.getPhone() != null ? u.getPhone() : "",
+                        "isPhoneVerified", Boolean.TRUE.equals(u.getIsPhoneVerified()),
+                        // -----------------------
                         "roles", u.getRoles()
                 ))
                 .map(ResponseEntity::ok)

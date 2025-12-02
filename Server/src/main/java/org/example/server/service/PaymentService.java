@@ -160,7 +160,7 @@ public class PaymentService {
                 }
             } else if ("FAILED".equalsIgnoreCase(payStatus) || "CANCELLED".equalsIgnoreCase(payStatus)) {
                 if ("PENDING".equalsIgnoreCase(order.getStatus())) {
-                    order.setStatus("CANCELED");
+                    order.setStatus("CANCELLED");
                     order.setUpdatedAt(LocalDateTime.now());
                     orderRepository.save(order);
                     for (OrderItem it : order.getItems()) {

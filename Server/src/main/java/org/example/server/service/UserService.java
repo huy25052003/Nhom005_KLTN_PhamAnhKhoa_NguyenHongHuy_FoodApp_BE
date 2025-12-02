@@ -1,5 +1,7 @@
 package org.example.server.service;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.User;
 import org.example.server.repository.UserRepository;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -90,6 +93,34 @@ public class UserService {
             return userRepository.save(user);
         }
         throw new RuntimeException("Mã xác thực không đúng");
+    }
+
+    public User verifyPhoneWithFirebase(Long userId, String firebaseToken) {
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseToken);
+
+            Object phoneObj = decodedToken.getClaims().get("phone_number");
+            if (phoneObj == null) {
+                throw new IllegalArgumentException("Token không chứa số điện thoại.");
+            }
+            String phone = phoneObj.toString();
+            Optional<User> existingUser = userRepository.findByPhone(phone);
+            if (existingUser.isPresent()) {
+                if (!existingUser.get().getId().equals(userId)) {
+                    throw new IllegalArgumentException("Số điện thoại đã được liên kết với tài khoản khác.");
+                }
+            }
+            User user = getUserById(userId);
+            user.setPhone(phone);
+            user.setIsPhoneVerified(true);
+
+            return userRepository.save(user);
+
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xác thực SĐT: " + e.getMessage());
+        }
     }
 
 }
