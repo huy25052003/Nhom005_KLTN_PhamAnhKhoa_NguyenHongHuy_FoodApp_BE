@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-
 import java.util.List;
 import java.util.Map;
 
@@ -19,9 +18,16 @@ import java.util.Map;
 public class ProductController {
     private final ProductService productService;
 
+    // Admin lấy tất cả
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    // API Mới: Khách lấy list (chỉ Active)
+    @GetMapping("/public")
+    public ResponseEntity<List<Product>> getPublicProducts() {
+        return ResponseEntity.ok(productService.getPublicProducts());
     }
 
     @GetMapping("/{id}")
@@ -44,8 +50,16 @@ public class ProductController {
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
+        productService.deleteProduct(id); // Gọi hàm xóa mềm
         return ResponseEntity.noContent().build();
+    }
+
+    // API Mới: Toggle Ẩn/Hiện nhanh
+    @PatchMapping("/{id}/toggle")
+    @Transactional
+    public ResponseEntity<Void> toggleProduct(@PathVariable Long id) {
+        productService.toggleActive(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/search")
@@ -53,9 +67,10 @@ public class ProductController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "false") boolean isAdmin // Thêm cờ isAdmin
     ) {
-        Page<Product> pg = productService.search(categoryId, q, page, limit);
+        Page<Product> pg = productService.search(categoryId, q, page, limit, isAdmin);
         return ResponseEntity.ok(Map.of(
                 "items", pg.getContent(),
                 "total", pg.getTotalElements()
