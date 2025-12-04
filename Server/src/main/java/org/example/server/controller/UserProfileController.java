@@ -28,6 +28,7 @@ public class UserProfileController {
                         // --- THÊM 2 DÒNG NÀY ---
                         "phone", u.getPhone() != null ? u.getPhone() : "",
                         "isPhoneVerified", Boolean.TRUE.equals(u.getIsPhoneVerified()),
+                        "points", u.getPoints() == null ? 0 : u.getPoints(),
                         // -----------------------
                         "roles", u.getRoles()
                 ))

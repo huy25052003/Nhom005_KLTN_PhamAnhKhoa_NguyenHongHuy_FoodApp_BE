@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -36,7 +37,7 @@ public class OrderService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderItemRepository orderItemRepository;
 
-    // SỬA: Dùng CANCELLED (2 chữ L)
+    // Quy định chuyển trạng thái hợp lệ
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELLED"),
             "CONFIRMED",  Set.of("PREPARING", "CANCELLED"),
@@ -46,7 +47,6 @@ public class OrderService {
             "CANCELLED",  Set.of()
     );
 
-    // ... (giữ nguyên hàm placeOrder, getUserOrders, getOne, getAllOrders)
     @Transactional
     public Order placeOrder(String username, List<OrderItem> items, String promoCode, Map<String, Object> shippingData, String paymentMethod) {
         User user = userRepo.findByUsername(username)
@@ -64,15 +64,36 @@ public class OrderService {
             subtotal = subtotal.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
 
-        BigDecimal discount = BigDecimal.ZERO;
+        // --- 1. TÍNH GIẢM GIÁ TỪ COUPON ---
+        BigDecimal promoDiscount = BigDecimal.ZERO;
         Promotion applied = null;
         if (promoCode != null && !promoCode.isBlank()) {
             var res = promotionService.preview(promoCode, items);
-            discount = res.discount();
+            promoDiscount = res.discount();
             applied = res.promotion();
         }
 
-        BigDecimal total = subtotal.subtract(discount);
+        // --- 2. TÍNH GIẢM GIÁ TỪ HẠNG THÀNH VIÊN ---
+        BigDecimal memberDiscount = BigDecimal.ZERO;
+        int points = user.getPoints() == null ? 0 : user.getPoints();
+        double rate = 0;
+
+        if (points >= 2000) {
+            rate = 0.08; // Kim Cương: 8%
+        } else if (points >= 500) {
+            rate = 0.05; // Vàng: 5%
+        } else if (points >= 100) {
+            rate = 0.03; // Bạc: 3%
+        } else {
+            rate = 0.01; // Đồng: 1%
+        }
+
+        memberDiscount = subtotal.multiply(BigDecimal.valueOf(rate));
+
+        // Tổng giảm giá
+        BigDecimal totalDiscount = promoDiscount.add(memberDiscount);
+
+        BigDecimal total = subtotal.subtract(totalDiscount);
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -83,11 +104,14 @@ public class OrderService {
         shippingInfoService.upsertMy(auth, shippingData);
         ShippingInfo shippingSnapshot = shippingInfoService.snapshotForOrder(user);
 
+        // Lưu mã khuyến mãi đặc biệt nếu dùng hạng thành viên
+        String finalPromoCode = applied != null ? applied.getCode() : (rate > 0 ? "MEMBER_RANK" : null);
+
         Order order = Order.builder()
                 .user(user)
                 .total(total)
-                .discount(discount)
-                .promotionCode(applied != null ? applied.getCode() : null)
+                .discount(totalDiscount)
+                .promotionCode(finalPromoCode)
                 .status("PENDING")
                 .paymentMethod(paymentMethod.toUpperCase())
                 .shipping(shippingSnapshot)
@@ -98,11 +122,13 @@ public class OrderService {
 
         Order saved = orderRepo.save(order);
 
+        // Trừ tồn kho
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             p.setStock(p.getStock() - i.getQuantity());
             productRepo.save(p);
         }
+        // Tăng lượt dùng mã giảm giá
         if (applied != null) promotionService.increaseUsage(applied);
 
         notificationService.newOrderNotify(saved);
@@ -159,17 +185,33 @@ public class OrderService {
 
         o.setStatus(next);
         o.setUpdatedAt(LocalDateTime.now());
+
+        // --- QUAN TRỌNG: CỘNG ĐIỂM KHI ĐƠN HÀNG HOÀN TẤT (DONE) ---
+        if ("DONE".equals(next)) {
+            User user = o.getUser();
+            // Quy đổi: 10.000đ = 1 điểm (Làm tròn xuống)
+            if (o.getTotal() != null && o.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                int pointsEarned = o.getTotal().divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR).intValue();
+
+                if (pointsEarned > 0) {
+                    int currentPoints = user.getPoints() == null ? 0 : user.getPoints();
+                    user.setPoints(currentPoints + pointsEarned);
+                    userRepo.save(user);
+                }
+            }
+        }
+        // ----------------------------------------------------------
+
         if ("PENDING".equals(cur) && "CONFIRMED".equals(next)) {
             notificationService.notifyKitchenOfNewOrder(o);
         }
         return orderRepo.save(o);
     }
 
-    // SỬA: Ép về CANCELLED
     private String normalize(String s) {
         if (s == null) return "";
         String up = s.trim().toUpperCase(Locale.ROOT);
-        if ("CANCELED".equals(up)) return "CANCELLED"; // Nếu lỡ gửi 1 L thì đổi thành 2 L
+        if ("CANCELED".equals(up)) return "CANCELLED";
         return up;
     }
 
@@ -186,11 +228,11 @@ public class OrderService {
             throw new RuntimeException("Only PENDING order can be cancelled");
         }
 
-        // SỬA: Set thành CANCELLED
         order.setStatus("CANCELLED");
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
 
+        // Hoàn lại kho
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             if (p != null) {
@@ -229,6 +271,7 @@ public class OrderService {
         item.setStatus(status);
         OrderItem savedItem = orderItemRepository.save(item);
 
+        // Cập nhật trạng thái đơn cha dựa trên các món con
         Order order = item.getOrder();
         List<OrderItem> allItems = order.getItems();
 
@@ -244,6 +287,7 @@ public class OrderService {
         }
         orderRepo.save(order);
 
+        // Bắn socket báo frontend
         messagingTemplate.convertAndSend("/topic/kitchen/update", "UPDATE");
 
         return savedItem;

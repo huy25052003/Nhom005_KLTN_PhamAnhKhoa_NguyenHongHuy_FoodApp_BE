@@ -37,6 +37,8 @@ public class User {
     @Column(length = 20)
     private String phone;
 
+    private Integer points;
+
     private Boolean isPhoneVerified = false;
 
     private Boolean isEmailVerified = false;
