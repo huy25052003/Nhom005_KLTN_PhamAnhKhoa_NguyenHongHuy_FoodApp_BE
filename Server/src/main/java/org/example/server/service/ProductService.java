@@ -45,6 +45,10 @@ public class ProductService {
         product.setImageUrl(updated.getImageUrl());
         product.setStock(updated.getStock());
         product.setCategory(updated.getCategory());
+        product.setCalories(updated.getCalories());
+        product.setProtein(updated.getProtein());
+        product.setCarbs(updated.getCarbs());
+        product.setFat(updated.getFat());
 
         // Cho phép cập nhật trạng thái active
         if (updated.getActive() != null) {

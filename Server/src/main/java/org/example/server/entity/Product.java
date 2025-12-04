@@ -46,6 +46,18 @@ public class Product {
     @Column(length = 1000)
     private String imageUrl;
 
+    @Column(name = "calories")
+    private Integer calories;
+
+    @Column(name = "protein")
+    private Double protein;
+
+    @Column(name = "carbs")
+    private Double carbs;
+
+    @Column(name = "fat")
+    private Double fat;
+
     @OneToMany(mappedBy = "product")
     @JsonIgnore
     private List<CartItem> cartItems = new ArrayList<>();

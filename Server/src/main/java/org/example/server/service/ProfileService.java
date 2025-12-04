@@ -40,6 +40,7 @@ public class ProfileService {
             p = new UserProfile();
             p.setUser(user);
         }
+        if (body.containsKey("fullName"))     p.setFullName(toStr(body.get("fullName")));
         if (body.containsKey("heightCm"))     p.setHeightCm(toDouble(body.get("heightCm")));
         if (body.containsKey("weightKg"))     p.setWeightKg(toDouble(body.get("weightKg")));
         if (body.containsKey("gender"))       p.setGender(toStr(body.get("gender")));
@@ -48,7 +49,10 @@ public class ProfileService {
         if (body.containsKey("targetCalories"))    p.setTargetCalories(toInt(body.get("targetCalories")));
         if (body.containsKey("activityLevel"))     p.setActivityLevel(toStr(body.get("activityLevel")));
         if (body.containsKey("birthDate"))         p.setBirthDate(java.time.LocalDate.parse(toStr(body.get("birthDate"))));
-
+        if (body.containsKey("birthDate")) {
+            String dStr = toStr(body.get("birthDate"));
+            p.setBirthDate((dStr == null || dStr.isBlank()) ? null : java.time.LocalDate.parse(dStr));
+        }
         return profileRepo.save(p);
     }
 

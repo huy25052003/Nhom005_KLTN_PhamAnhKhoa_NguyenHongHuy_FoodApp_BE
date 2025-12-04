@@ -71,8 +71,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/kitchen/**").hasAnyRole("ADMIN", "KITCHEN")
 
                         // API Đơn hàng
-                        .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyRole("ADMIN", "KITCHEN")
-                        .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAnyRole("ADMIN", "KITCHEN")
+                        .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyRole("ADMIN", "KITCHEN", "SHIPPER")
+                        .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAnyRole("ADMIN", "KITCHEN", "SHIPPER")
                         // ===== THAY ĐỔI CHO KITCHEN (KẾT THÚC) =====
 
                         // Các endpoint yêu cầu xác thực (authenticated)

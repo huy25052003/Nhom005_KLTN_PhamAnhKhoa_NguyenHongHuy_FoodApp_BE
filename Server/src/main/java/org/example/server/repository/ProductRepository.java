@@ -12,7 +12,10 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     // Chỉ lấy sản phẩm đang hiện (cho trang chủ)
     List<Product> findByActiveTrue();
-
+    // Tìm các món có calo thấp hơn mức cho phép và đang Active
+    List<Product> findByActiveTrueAndCaloriesLessThanEqual(Integer maxCalories);
+    // (Optional) Tìm các món trong khoảng calo (ví dụ +/- 100 calo so với mục tiêu)
+    List<Product> findByActiveTrueAndCaloriesBetween(Integer min, Integer max);
     // Search cho KHÁCH (chỉ tìm active = true)
     @Query("""
     SELECT p FROM Product p
