@@ -44,10 +44,9 @@ public class ProfileService {
         if (body.containsKey("heightCm"))     p.setHeightCm(toDouble(body.get("heightCm")));
         if (body.containsKey("weightKg"))     p.setWeightKg(toDouble(body.get("weightKg")));
         if (body.containsKey("gender"))       p.setGender(toStr(body.get("gender")));
-        if (body.containsKey("allergies"))    p.setAllergies(toStr(body.get("allergies")));
-        if (body.containsKey("dietaryPreference")) p.setDietaryPreference(toStr(body.get("dietaryPreference")));
         if (body.containsKey("targetCalories"))    p.setTargetCalories(toInt(body.get("targetCalories")));
         if (body.containsKey("activityLevel"))     p.setActivityLevel(toStr(body.get("activityLevel")));
+        if (body.containsKey("goal"))          p.setGoal(toStr(body.get("goal")));
         if (body.containsKey("birthDate"))         p.setBirthDate(java.time.LocalDate.parse(toStr(body.get("birthDate"))));
         if (body.containsKey("birthDate")) {
             String dStr = toStr(body.get("birthDate"));

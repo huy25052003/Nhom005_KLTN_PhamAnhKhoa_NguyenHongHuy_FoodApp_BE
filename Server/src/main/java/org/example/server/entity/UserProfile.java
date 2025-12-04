@@ -26,9 +26,9 @@ public class UserProfile {
     private Double heightCm;
     private Double weightKg;
     private String gender;
-    private String allergies;
-    private String dietaryPreference;
     private Integer targetCalories;
     private String activityLevel;
+    @Column(length = 20)
+    private String goal;
     private LocalDate birthDate;
 }
