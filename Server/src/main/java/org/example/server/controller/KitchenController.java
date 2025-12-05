@@ -31,5 +31,9 @@ public class KitchenController {
     public ResponseEntity<?> updateItemStatus(@PathVariable Long itemId, @RequestParam String status, Authentication auth) {
         return ResponseEntity.ok(orderService.updateItemStatus(itemId, status, auth));
     }
+    @PostMapping("/orders/{id}/claim")
+    public ResponseEntity<Void> claimOrder(@PathVariable Long id, Authentication auth) {
+        orderService.claimOrder(id, auth.getName());
+        return ResponseEntity.ok().build();
+    }
 }
-     

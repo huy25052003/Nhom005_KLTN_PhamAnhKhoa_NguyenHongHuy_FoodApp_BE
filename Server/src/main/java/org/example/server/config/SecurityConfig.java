@@ -61,14 +61,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/stats/**").hasRole("ADMIN")
                         .requestMatchers("/api/files/upload").hasRole("ADMIN")
                         .requestMatchers("/api/promotions/preview").authenticated()
-                        // .requestMatchers(HttpMethod.GET, "/api/orders").hasRole("ADMIN") // Sửa ở dưới
-                        // .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN") // Sửa ở dưới
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/topic/**", "/queue/**").permitAll()
 
                         // API Bếp (Kitchen)
                         .requestMatchers("/api/kitchen/**").hasAnyRole("ADMIN", "KITCHEN")
+
 
                         // API Đơn hàng
                         .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyRole("ADMIN", "KITCHEN", "SHIPPER")

@@ -292,4 +292,32 @@ public class OrderService {
 
         return savedItem;
     }
+
+    @Transactional
+    public void claimOrder(Long orderId, String username) {
+        // 1. Lấy thông tin đơn hàng và đầu bếp
+        Order order = orderRepo.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        User chef = userRepo.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Chef not found"));
+
+        boolean updated = false;
+        // 2. Duyệt qua các món chưa nhận (PENDING) và chuyển sang COOKING
+        for (OrderItem item : order.getItems()) {
+            if ("PENDING".equals(item.getStatus())) {
+                item.setStatus("COOKING");
+                item.setChef(chef);
+                orderItemRepository.save(item);
+                updated = true;
+            }
+        }
+
+        // 3. Cập nhật trạng thái đơn hàng và bắn thông báo
+        if (updated) {
+            order.setStatus("PREPARING");
+            order.setUpdatedAt(LocalDateTime.now());
+            orderRepo.save(order);
+            messagingTemplate.convertAndSend("/topic/kitchen/update", "CLAIM_ORDER");
+        }
+    }
 }
