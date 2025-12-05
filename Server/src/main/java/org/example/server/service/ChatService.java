@@ -94,7 +94,6 @@ public class ChatService {
                 .sender(sender)
                 .content(content)
                 .createdAt(LocalDateTime.now())
-                .isRead(false)
                 .build();
 
         // Update thời gian để sort

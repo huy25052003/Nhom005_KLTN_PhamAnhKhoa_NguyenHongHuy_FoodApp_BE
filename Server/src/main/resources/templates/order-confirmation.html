@@ -16,8 +16,14 @@
         th { background-color: #eee; padding: 10px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase; }
         td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
         .price { font-weight: bold; color: #333; }
-        .total { text-align: right; font-size: 18px; margin-top: 20px; padding-top: 10px; border-top: 2px solid #eee; }
+
+        /* CSS Mới cho phần tổng kết */
+        .summary-section { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .summary-row.discount { color: #4caf50; }
+        .total { text-align: right; font-size: 18px; margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee; }
         .total span { color: #d32f2f; font-weight: bold; font-size: 22px; }
+
         .footer { text-align: center; font-size: 12px; color: #999; padding: 20px; background-color: #f9f9f9; }
     </style>
 </head>
@@ -68,8 +74,23 @@
             </table>
         </div>
 
+        <div class="summary-section">
+            <div class="summary-row">
+                <span>Tạm tính:</span>
+                <span th:text="${#numbers.formatDecimal(order.total.add(order.discount != null ? order.discount : 0), 0, 'POINT', 0, 'POINT')} + ' đ'">110.000 đ</span>
+            </div>
+
+            <div class="summary-row discount" th:if="${order.discount != null and order.discount > 0}">
+                <span>
+                    Giảm giá
+                    <span th:if="${order.promotionCode != null}" th:text="'(' + ${order.promotionCode} + ')'"></span>:
+                </span>
+                <span>-<span th:text="${#numbers.formatDecimal(order.discount, 0, 'POINT', 0, 'POINT')} + ' đ'">10.000 đ</span></span>
+            </div>
+        </div>
+
         <div class="total">
-            Tổng cộng: <span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'POINT')} + ' đ'">100.000 đ</span>
+            Tổng thanh toán: <span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'POINT')} + ' đ'">100.000 đ</span>
         </div>
     </div>
 

@@ -32,9 +32,6 @@ public class Message {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "is_read")
-    private boolean isRead = false;
-
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();

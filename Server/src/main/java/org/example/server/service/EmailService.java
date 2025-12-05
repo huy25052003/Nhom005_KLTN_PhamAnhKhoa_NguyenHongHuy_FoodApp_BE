@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -78,6 +82,32 @@ public class EmailService {
                     "<p>Vui lòng không chia sẻ mã này cho ai.</p>";
 
             helper.setText(html, true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Async
+    public void sendDailyReport(String toEmail, String dateStr, BigDecimal revenue, Long orders, List<Map<String, Object>> productList) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            String revenueStr = String.format("%,.0f đ", revenue);
+
+            Context context = new Context();
+            context.setVariable("date", dateStr);
+            context.setVariable("revenue", revenueStr);
+            context.setVariable("orders", orders);
+            context.setVariable("productList", productList); // Truyền danh sách vào template
+
+            String htmlContent = templateEngine.process("daily-report", context);
+
+            helper.setTo(toEmail);
+            helper.setSubject("📊 Báo cáo doanh thu chi tiết ngày " + dateStr);
+            helper.setText(htmlContent, true);
+
             mailSender.send(message);
         } catch (MessagingException e) {
             e.printStackTrace();

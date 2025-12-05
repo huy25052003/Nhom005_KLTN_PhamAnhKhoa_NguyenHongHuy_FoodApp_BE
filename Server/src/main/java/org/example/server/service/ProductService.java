@@ -3,6 +3,8 @@ package org.example.server.service;
 import lombok.RequiredArgsConstructor;
 import org.example.server.entity.Product;
 import org.example.server.repository.ProductRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -22,6 +24,7 @@ public class ProductService {
     }
 
     // Khách chỉ thấy Active
+    @Cacheable(value = "products", key = "'public_active_list'")
     public List<Product> getPublicProducts() {
         return productRepository.findByActiveTrue();
     }
@@ -31,12 +34,15 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("Product not found"));
     }
 
+    @Transactional
+    @CacheEvict(value = "products", key = "'public_list'")
     public Product createProduct(Product product) {
         // Mặc định khi tạo mới là hiện
         if (product.getActive() == null) product.setActive(true);
         return productRepository.save(product);
     }
-
+    @Transactional
+    @CacheEvict(value = "products", key = "'public_list'")
     public Product updateProduct(Long id, Product updated) {
         Product product = getProductById(id);
         product.setName(updated.getName());
@@ -58,6 +64,8 @@ public class ProductService {
     }
 
     // --- XÓA MỀM (SOFT DELETE) ---
+    @Transactional
+    @CacheEvict(value = "products", key = "'public_list'")
     public void deleteProduct(Long id) {
         Product product = getProductById(id);
         product.setActive(false); // Chỉ ẩn đi, không xóa database
@@ -65,6 +73,8 @@ public class ProductService {
     }
 
     // Toggle nhanh (Dùng cho nút con mắt)
+    @Transactional
+    @CacheEvict(value = "products", key = "'public_list'")
     public void toggleActive(Long id) {
         Product product = getProductById(id);
         product.setActive(!product.getActive());

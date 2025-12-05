@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        .header { background-color: #10b981; color: white; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; }
+        .stat-box { display: flex; justify-content: space-between; margin: 20px 0; }
+        .stat-item { background: #f9fafb; padding: 15px; width: 48%; text-align: center; border-radius: 8px; border: 1px solid #eee; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #10b981; }
+
+        /* CSS cho bảng chi tiết */
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        .details-table th { background-color: #f3f4f6; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
+        .details-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .text-right { text-align: right; }
+        .footer { font-size: 12px; color: #999; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>Báo Cáo Doanh Thu Ngày</h2>
+        <p th:text="${date}">20/10/2024</p>
+    </div>
+
+    <div style="padding: 20px 0;">
+        <p>Xin chào Admin,</p>
+        <p>Tổng kết tình hình kinh doanh hôm nay:</p>
+
+        <div class="stat-box">
+            <div class="stat-item">
+                <div>Tổng Doanh thu</div>
+                <div class="stat-value" th:text="${revenue}">0 đ</div>
+            </div>
+            <div class="stat-item">
+                <div>Đơn hàng</div>
+                <div class="stat-value" th:text="${orders}">0</div>
+            </div>
+        </div>
+
+        <h3>📦 Chi tiết sản phẩm bán ra</h3>
+        <table class="details-table">
+            <thead>
+            <tr>
+                <th width="50%">Tên món</th>
+                <th width="20%" class="text-right">Số lượng</th>
+                <th width="30%" class="text-right">Doanh thu</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="prod : ${productList}">
+                <td th:text="${prod.name}">Cơm gà</td>
+                <td class="text-right" th:text="${prod.qty}">5</td>
+                <td class="text-right" th:text="${prod.revenue}">150.000 đ</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(productList)}">
+                <td colspan="3" style="text-align: center; color: #999;">Chưa có sản phẩm nào được bán.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+        <p>&copy; 2024 FoodApp Service.</p>
+    </div>
+</div>
+</body>
+</html>
