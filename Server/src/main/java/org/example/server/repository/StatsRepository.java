@@ -1,4 +1,3 @@
-// org/example/server/repository/StatsRepository.java
 package org.example.server.repository;
 
 import org.example.server.entity.Product;
@@ -12,12 +11,12 @@ import java.util.List;
 public interface StatsRepository extends JpaRepository<Product, Long> {
 
     @Query("""
-      select coalesce                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         (sum(oi.price * oi.quantity), 0),
+      select coalesce(sum(oi.price * oi.quantity), 0),
              count(distinct o.id),
              coalesce(sum(oi.quantity), 0)
       from Order o
       join o.items oi
-      where o.status in ('CONFIRMED','PREPARING','SHIPPING','COMPLETED')
+      where o.status = 'DONE'
         and o.createdAt >= :start and o.createdAt < :end
     """)
     List<Object[]> overview(@Param("start") LocalDateTime start,
@@ -28,7 +27,7 @@ public interface StatsRepository extends JpaRepository<Product, Long> {
              coalesce(sum(oi.price * oi.quantity), 0)
       from Order o
       join o.items oi
-      where o.status in ('CONFIRMED','PREPARING','SHIPPING','COMPLETED')
+      where o.status = 'DONE'
         and o.createdAt >= :start and o.createdAt < :end
       group by function('date', o.createdAt)
       order by d asc
@@ -42,7 +41,7 @@ public interface StatsRepository extends JpaRepository<Product, Long> {
              coalesce(sum(oi.price * oi.quantity), 0) as revenue
       from Order o
       join o.items oi
-      where o.status in ('CONFIRMED','PREPARING','SHIPPING','COMPLETED')
+      where o.status = 'DONE'
         and o.createdAt >= :start and o.createdAt < :end
       group by oi.product.id, oi.product.name
       order by qty desc

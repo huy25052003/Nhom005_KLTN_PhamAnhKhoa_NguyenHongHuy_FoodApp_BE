@@ -79,4 +79,13 @@ public class ProductService {
             return productRepository.searchPublic(categoryId, q, pageable);
         }
     }
+
+    public List<Product> getTopSellingProducts(int limit) {
+        List<Product> top = productRepository.findTopSelling(PageRequest.of(0, limit));
+
+        if (top.isEmpty()) {
+            return productRepository.findByActiveTrue().stream().limit(limit).toList();
+        }
+        return top;
+    }
 }

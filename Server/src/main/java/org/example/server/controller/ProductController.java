@@ -76,4 +76,8 @@ public class ProductController {
                 "total", pg.getTotalElements()
         ));
     }
+    @GetMapping("/top")
+    public ResponseEntity<List<Product>> getTopProducts(@RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(productService.getTopSellingProducts(limit));
+    }
 }

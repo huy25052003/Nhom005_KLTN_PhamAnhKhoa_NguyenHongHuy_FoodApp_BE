@@ -36,4 +36,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> searchAdmin(@Param("categoryId") Long categoryId,
                               @Param("q") String q,
                               Pageable pageable);
+
+    @Query("SELECT p FROM Product p " +
+            "JOIN p.orderItems oi " +
+            "JOIN oi.order o " +
+            "WHERE p.active = true AND o.status = 'DONE' " +
+            "GROUP BY p " +
+            "ORDER BY SUM(oi.quantity) DESC")
+    List<Product> findTopSelling(Pageable pageable);
 }
