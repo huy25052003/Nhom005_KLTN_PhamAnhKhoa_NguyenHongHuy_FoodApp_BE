@@ -19,6 +19,7 @@ public class OrderItem {
 
     private BigDecimal price;
 
+
     @Builder.Default
     private String status = "PENDING";
 

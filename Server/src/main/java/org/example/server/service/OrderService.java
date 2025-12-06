@@ -320,4 +320,40 @@ public class OrderService {
             messagingTemplate.convertAndSend("/topic/kitchen/update", "CLAIM_ORDER");
         }
     }
+    @Transactional
+    public void finishOrder(Long orderId, String username) {
+        // 1. Lấy thông tin đơn hàng
+        Order order = orderRepo.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        boolean updated = false;
+
+        // 2. Duyệt qua các món đang nấu (COOKING) chuyển thành DONE
+        for (OrderItem item : order.getItems()) {
+            if ("COOKING".equals(item.getStatus())) {
+                item.setStatus("DONE");
+                orderItemRepository.save(item);
+                updated = true;
+            }
+        }
+
+        // 3. Cập nhật trạng thái đơn hàng cha
+        if (updated) {
+            // Kiểm tra: Nếu tất cả món đã DONE thì đơn -> DELIVERING, ngược lại vẫn PREPARING
+            boolean allDone = order.getItems().stream()
+                    .allMatch(i -> "DONE".equals(i.getStatus()));
+
+            if (allDone) {
+                order.setStatus("DELIVERING");
+            } else {
+                order.setStatus("PREPARING");
+            }
+
+            order.setUpdatedAt(LocalDateTime.now());
+            orderRepo.save(order);
+
+            // Bắn socket để frontend tự cập nhật
+            messagingTemplate.convertAndSend("/topic/kitchen/update", "FINISH_ORDER");
+        }
+    }
 }

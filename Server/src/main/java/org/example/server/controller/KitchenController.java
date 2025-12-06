@@ -36,4 +36,9 @@ public class KitchenController {
         orderService.claimOrder(id, auth.getName());
         return ResponseEntity.ok().build();
     }
+    @PostMapping("/orders/{id}/finish")
+    public ResponseEntity<Void> finishOrder(@PathVariable Long id, Authentication auth) {
+        orderService.finishOrder(id, auth.getName());
+        return ResponseEntity.ok().build();
+    }
 }
