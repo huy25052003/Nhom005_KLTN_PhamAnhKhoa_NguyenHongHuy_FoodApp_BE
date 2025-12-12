@@ -76,8 +76,6 @@ public class ChatController {
                     chatMessage.getContent(),
                     auth
             );
-
-            // Convert sang DTO để tránh lỗi lặp JSON
             MessageDtos responseDto = MessageDtos.builder()
                     .id(savedMsg.getId())
                     .conversationId(savedMsg.getConversation().getId())

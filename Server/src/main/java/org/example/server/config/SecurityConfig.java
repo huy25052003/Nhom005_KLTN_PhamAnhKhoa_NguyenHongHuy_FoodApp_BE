@@ -103,7 +103,11 @@ public class SecurityConfig {
                 "https://nhom005foodapp.vercel.app",
                 "https://*.vercel.app",
                 "https://*.onrender.com",
-                "https://unscaled-obtect-irvin.ngrok-free.dev"
+                "https://unscaled-obtect-irvin.ngrok-free.dev",
+                "https://foodapp.id.vn",
+                "https://www.foodapp.id.vn",
+                "https://foodappsv.id.vn",
+                "https://www.foodappsv.id.vn"
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "ngrok-skip-browser-warning"));

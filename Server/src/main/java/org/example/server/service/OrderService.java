@@ -37,7 +37,7 @@ public class OrderService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderItemRepository orderItemRepository;
 
-    // Quy định chuyển trạng thái hợp lệ
+    // Quy d?nh chuy?n tr?ng th�i h?p l?
     private static final Map<String, Set<String>> ALLOWED = Map.of(
             "PENDING",    Set.of("CONFIRMED", "CANCELLED"),
             "CONFIRMED",  Set.of("PREPARING", "CANCELLED"),
@@ -64,7 +64,7 @@ public class OrderService {
             subtotal = subtotal.add(p.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
 
-        // --- 1. TÍNH GIẢM GIÁ TỪ COUPON ---
+        // --- 1. T�NH GI?M GI� T? COUPON ---
         BigDecimal promoDiscount = BigDecimal.ZERO;
         Promotion applied = null;
         if (promoCode != null && !promoCode.isBlank()) {
@@ -73,24 +73,24 @@ public class OrderService {
             applied = res.promotion();
         }
 
-        // --- 2. TÍNH GIẢM GIÁ TỪ HẠNG THÀNH VIÊN ---
+        // --- 2. T�NH GI?M GI� T? H?NG TH�NH VI�N ---
         BigDecimal memberDiscount = BigDecimal.ZERO;
         int points = user.getPoints() == null ? 0 : user.getPoints();
         double rate = 0;
 
         if (points >= 2000) {
-            rate = 0.08; // Kim Cương: 8%
+            rate = 0.08; // Kim Cuong: 8%
         } else if (points >= 500) {
-            rate = 0.05; // Vàng: 5%
+            rate = 0.05; // V�ng: 5%
         } else if (points >= 100) {
-            rate = 0.03; // Bạc: 3%
+            rate = 0.03; // B?c: 3%
         } else {
-            rate = 0.01; // Đồng: 1%
+            rate = 0.01; // �?ng: 1%
         }
 
         memberDiscount = subtotal.multiply(BigDecimal.valueOf(rate));
 
-        // Tổng giảm giá
+        // T?ng gi?m gi�
         BigDecimal totalDiscount = promoDiscount.add(memberDiscount);
 
         BigDecimal total = subtotal.subtract(totalDiscount);
@@ -104,7 +104,7 @@ public class OrderService {
         shippingInfoService.upsertMy(auth, shippingData);
         ShippingInfo shippingSnapshot = shippingInfoService.snapshotForOrder(user);
 
-        // Lưu mã khuyến mãi đặc biệt nếu dùng hạng thành viên
+        // Luu m� khuy?n m�i d?c bi?t n?u d�ng h?ng th�nh vi�n
         String finalPromoCode = applied != null ? applied.getCode() : (rate > 0 ? "MEMBER_RANK" : null);
 
         Order order = Order.builder()
@@ -122,13 +122,13 @@ public class OrderService {
 
         Order saved = orderRepo.save(order);
 
-        // Trừ tồn kho
+        // Tr? t?n kho
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             p.setStock(p.getStock() - i.getQuantity());
             productRepo.save(p);
         }
-        // Tăng lượt dùng mã giảm giá
+        // Tang lu?t d�ng m� gi?m gi�
         if (applied != null) promotionService.increaseUsage(applied);
 
         notificationService.newOrderNotify(saved);
@@ -186,10 +186,10 @@ public class OrderService {
         o.setStatus(next);
         o.setUpdatedAt(LocalDateTime.now());
 
-        // --- QUAN TRỌNG: CỘNG ĐIỂM KHI ĐƠN HÀNG HOÀN TẤT (DONE) ---
+        // --- QUAN TR?NG: C?NG �I?M KHI �ON H�NG HO�N T?T (DONE) ---
         if ("DONE".equals(next)) {
             User user = o.getUser();
-            // Quy đổi: 10.000đ = 1 điểm (Làm tròn xuống)
+            // Quy d?i: 10.000d = 1 di?m (L�m tr�n xu?ng)
             if (o.getTotal() != null && o.getTotal().compareTo(BigDecimal.ZERO) > 0) {
                 int pointsEarned = o.getTotal().divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR).intValue();
 
@@ -232,7 +232,7 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
 
-        // Hoàn lại kho
+        // Ho�n l?i kho
         for (OrderItem i : saved.getItems()) {
             Product p = i.getProduct();
             if (p != null) {
@@ -252,14 +252,14 @@ public class OrderService {
     @Transactional
     public OrderItem updateItemStatus(Long itemId, String status, Authentication auth) {
         OrderItem item = orderItemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("Món không tồn tại"));
+                .orElseThrow(() -> new RuntimeException("M�n kh�ng t?n t?i"));
 
         User currentChef = userRepo.findByUsername(auth.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if ("COOKING".equals(status)) {
             if (item.getChef() != null && !item.getChef().getId().equals(currentChef.getId())) {
-                throw new RuntimeException("Món này đã có người nhận rồi!");
+                throw new RuntimeException("M�n n�y d� c� ngu?i nh?n r?i!");
             }
             item.setChef(currentChef);
         }
@@ -271,7 +271,7 @@ public class OrderService {
         item.setStatus(status);
         OrderItem savedItem = orderItemRepository.save(item);
 
-        // Cập nhật trạng thái đơn cha dựa trên các món con
+        // C?p nh?t tr?ng th�i don cha d?a tr�n c�c m�n con
         Order order = item.getOrder();
         List<OrderItem> allItems = order.getItems();
 
@@ -287,7 +287,7 @@ public class OrderService {
         }
         orderRepo.save(order);
 
-        // Bắn socket báo frontend
+        // B?n socket b�o frontend
         messagingTemplate.convertAndSend("/topic/kitchen/update", "UPDATE");
 
         return savedItem;
@@ -295,14 +295,14 @@ public class OrderService {
 
     @Transactional
     public void claimOrder(Long orderId, String username) {
-        // 1. Lấy thông tin đơn hàng và đầu bếp
+        // 1. L?y th�ng tin don h�ng v� d?u b?p
         Order order = orderRepo.findByIdWithDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         User chef = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Chef not found"));
 
         boolean updated = false;
-        // 2. Duyệt qua các món chưa nhận (PENDING) và chuyển sang COOKING
+        // 2. Duy?t qua c�c m�n chua nh?n (PENDING) v� chuy?n sang COOKING
         for (OrderItem item : order.getItems()) {
             if ("PENDING".equals(item.getStatus())) {
                 item.setStatus("COOKING");
@@ -312,7 +312,7 @@ public class OrderService {
             }
         }
 
-        // 3. Cập nhật trạng thái đơn hàng và bắn thông báo
+        // 3. C?p nh?t tr?ng th�i don h�ng v� b?n th�ng b�o
         if (updated) {
             order.setStatus("PREPARING");
             order.setUpdatedAt(LocalDateTime.now());
@@ -322,13 +322,13 @@ public class OrderService {
     }
     @Transactional
     public void finishOrder(Long orderId, String username) {
-        // 1. Lấy thông tin đơn hàng
+        // 1. L?y th�ng tin don h�ng
         Order order = orderRepo.findByIdWithDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         boolean updated = false;
 
-        // 2. Duyệt qua các món đang nấu (COOKING) chuyển thành DONE
+        // 2. Duy?t qua c�c m�n dang n?u (COOKING) chuy?n th�nh DONE
         for (OrderItem item : order.getItems()) {
             if ("COOKING".equals(item.getStatus())) {
                 item.setStatus("DONE");
@@ -337,9 +337,9 @@ public class OrderService {
             }
         }
 
-        // 3. Cập nhật trạng thái đơn hàng cha
+        // 3. C?p nh?t tr?ng th�i don h�ng cha
         if (updated) {
-            // Kiểm tra: Nếu tất cả món đã DONE thì đơn -> DELIVERING, ngược lại vẫn PREPARING
+            // Ki?m tra: N?u t?t c? m�n d� DONE th� don -> DELIVERING, ngu?c l?i v?n PREPARING
             boolean allDone = order.getItems().stream()
                     .allMatch(i -> "DONE".equals(i.getStatus()));
 
@@ -352,7 +352,7 @@ public class OrderService {
             order.setUpdatedAt(LocalDateTime.now());
             orderRepo.save(order);
 
-            // Bắn socket để frontend tự cập nhật
+            // B?n socket d? frontend t? c?p nh?t
             messagingTemplate.convertAndSend("/topic/kitchen/update", "FINISH_ORDER");
         }
     }

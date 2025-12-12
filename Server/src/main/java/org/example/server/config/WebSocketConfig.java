@@ -20,8 +20,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
                 .setAllowedOrigins(
-                        "http://localhost:5173/",                   // React chạy local
-                        "https://unscaled-obtect-irvin.ngrok-free.dev/"// Link Ngrok của Backend (nếu bạn gọi trực tiếp)
+                        "http://localhost:5173/",
+                        "https://unscaled-obtect-irvin.ngrok-free.dev/",
+                        "https://foodapp.id.vn",
+                        "https://www.foodapp.id.vn",
+                        "https://foodappsv.id.vn",
+                        "https://www.foodappsv.id.vn"
                 )
                 .withSockJS();
     }

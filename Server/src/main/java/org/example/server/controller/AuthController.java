@@ -37,7 +37,7 @@ public class AuthController {
     @PostMapping("/forgot-password/request")
     public ResponseEntity<?> forgotPasswordRequest(@RequestBody Map<String, String> body) {
         String email = body.get("email");
-        auth.requestPasswordReset(email); // Bạn cần sửa AuthService để inject EmailService vào đó
+        auth.requestPasswordReset(email);
         return ResponseEntity.ok(Map.of("message", "Đã gửi mã xác nhận"));
     }
 
